@@ -47,6 +47,7 @@ export default function TabLayout() {
           },
           headerShown: false,
           tabBarShowLabel: true,
+          sceneStyle: { paddingBottom: 70 + bottomInset },
           tabBarLabelStyle: {
             fontSize: 11,
             fontWeight: "600",
