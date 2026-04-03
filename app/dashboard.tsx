@@ -1,0 +1,1034 @@
+import api from "@/utils/axios";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { useQuery } from "@tanstack/react-query";
+import { BarChart3, Calendar, PieChart, TrendingUp, Wallet, X } from "lucide-react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+
+function formatDateYYYYMMDD(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateDDMMYYYY(date: Date): string {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+const CHART_BAR_HEIGHT = 100;
+const CHART_DAY_WIDTH = 28;
+const MIN_BAR_HEIGHT = 4;
+
+type DashboardSummary = {
+  sales: number;
+  commission: number;
+  winnings: number;
+  profit: number;
+  dealer_pending?: number;
+  total_dealer_pending?: number;
+  total_paid_amount?: number;
+  total_received_amount?: number;
+};
+
+type DailyItem = {
+  date: string; // MM-DD
+  sales: number;
+  profit: number;
+};
+
+type DrawItem = {
+  name: string;
+  sales: number;
+  winnings: number;
+  profit: number;
+};
+
+type DashboardResponse = {
+  summary: DashboardSummary;
+  daily: DailyItem[];
+  draws: DrawItem[];
+};
+
+const DAY_OPTIONS = [15, 30];
+
+type DealerBalance = {
+  id: number;
+  name: string;
+  balance_amount: number;
+};
+
+type DealerBalanceResponse = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: DealerBalance[];
+  total_pending_amount: number;
+};
+
+type DealerPendingModalProps = {
+  visible: boolean;
+  onClose: () => void;
+  initialDateRangeMode: "days" | "custom";
+  initialDays: number;
+  initialStartDate: Date;
+  initialEndDate: Date;
+};
+
+const LIMIT = 10;
+
+function DealerPendingModal({
+  visible,
+  onClose,
+  initialDateRangeMode,
+  initialDays,
+  initialStartDate,
+  initialEndDate,
+}: DealerPendingModalProps) {
+  const [dateRangeMode, setDateRangeMode] = useState<"days" | "custom">(initialDateRangeMode);
+  const [days, setDays] = useState(initialDays);
+  const [startDate, setStartDate] = useState(initialStartDate);
+  const [endDate, setEndDate] = useState(initialEndDate);
+  const [showDatePicker, setShowDatePicker] = useState<"from" | "to" | null>(null);
+
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const [allData, setAllData] = useState<DealerBalance[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPending, setTotalPending] = useState<number | null>(null);
+  const [next, setNext] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (visible) {
+      setDateRangeMode(initialDateRangeMode);
+      setDays(initialDays);
+      setStartDate(initialStartDate);
+      setEndDate(initialEndDate);
+      setSearchInput("");
+      setSearch("");
+    }
+  }, [visible, initialDateRangeMode, initialDays, initialStartDate, initialEndDate]);
+
+  // Debounce search
+  useEffect(() => {
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    // @ts-expect-error type-off
+    searchTimeout.current = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => { if (searchTimeout.current) clearTimeout(searchTimeout.current); };
+  }, [searchInput]);
+
+  const buildDateParams = useCallback(() => {
+    if (dateRangeMode === "custom") {
+      return { start_date: formatDateYYYYMMDD(startDate), end_date: formatDateYYYYMMDD(endDate) };
+    }
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - days);
+    return { start_date: formatDateYYYYMMDD(start), end_date: formatDateYYYYMMDD(end) };
+  }, [dateRangeMode, startDate, endDate, days]);
+
+  const fetchPage = useCallback(async (offsetVal: number) => {
+    const dateParams = buildDateParams();
+    const params: Record<string, any> = {
+      ...dateParams,
+      limit: LIMIT,
+      offset: offsetVal,
+    };
+    if (search) params.search = search;
+
+    const query = Object.entries(params)
+      .filter(([, v]) => v !== undefined && v !== null && v !== "")
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join("&");
+
+    const res = await api.get(`/draw-payment/dealers-with-pending-balance/?${query}`);
+    return res.data as DealerBalanceResponse;
+  }, [buildDateParams, search]);
+
+  // Fetch on search/date changes
+  useEffect(() => {
+    if (!visible) return;
+    let ignore = false;
+    setLoading(true);
+    setAllData([]);
+    (async () => {
+      try {
+        const data = await fetchPage(0);
+        if (ignore) return;
+        setAllData(data.results);
+        setTotalCount(data.count);
+        setTotalPending(data.total_pending_amount);
+        setNext(data.next);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => { ignore = true; };
+  }, [visible, search, dateRangeMode, days, startDate, endDate, fetchPage]);
+
+  const handleLoadMore = useCallback(async () => {
+    if (loadingMore || !next) return;
+    setLoadingMore(true);
+    try {
+      const url = new URL(next);
+      const res = await api.get(`${url.pathname}${url.search}`);
+      const data = res.data as DealerBalanceResponse;
+      setAllData(prev => {
+        const all = [...prev, ...(data?.results || [])];
+        const idSet = new Set<number>();
+        const deduped: DealerBalance[] = [];
+        for (const item of all) {
+          if (!idSet.has(item.id)) {
+            idSet.add(item.id);
+            deduped.push(item);
+          }
+        }
+        return deduped;
+      });
+      setTotalCount(data.count);
+      setNext(data.next);
+    } catch { }
+    setLoadingMore(false);
+  }, [loadingMore, next]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const data = await fetchPage(0);
+      setAllData(data.results);
+      setTotalCount(data.count);
+      setTotalPending(data.total_pending_amount);
+      setNext(data.next);
+    } catch { }
+    setRefreshing(false);
+  };
+
+  const onDateChange = useCallback(
+    (event: { type: string }, selectedDate?: Date) => {
+      setShowDatePicker(null);
+      if (event.type !== "set" || !selectedDate) return;
+      if (showDatePicker === "from") {
+        setStartDate(selectedDate);
+        if (selectedDate > endDate) setEndDate(selectedDate);
+      } else if (showDatePicker === "to") {
+        setEndDate(selectedDate);
+        if (selectedDate < startDate) setStartDate(selectedDate);
+      }
+    },
+    [showDatePicker, startDate, endDate]
+  );
+
+  const renderItem = ({ item }: { item: DealerBalance }) => (
+    <View
+      style={{
+        backgroundColor: "#f8fafc",
+        borderRadius: 12,
+        padding: 16,
+        marginVertical: 6,
+        marginHorizontal: 16,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        borderWidth: 1,
+        borderColor: "#e2e8f0",
+      }}
+    >
+      <Text style={{ fontWeight: "600", fontSize: 15, color: "#1e293b", flex: 1 }}>
+        {item.name}
+      </Text>
+      <Text style={{ fontWeight: "bold", fontSize: 15, color: "#047857" }}>
+        ₹{item.balance_amount?.toLocaleString("en-IN") ?? "0"}
+      </Text>
+    </View>
+  );
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View className="flex-1 bg-white" style={{ paddingTop: Platform.OS === "android" ? 40 : 0 }}>
+        {/* Header */}
+        <View className="px-4 py-3 flex-row items-center justify-between border-b border-gray-200">
+          <View className="flex-1">
+            <Text className="text-lg font-bold text-gray-900">Dealer Pending Balance</Text>
+            {totalPending != null && (
+              <Text className="text-sm font-semibold text-emerald-700 mt-0.5">
+                Total: ₹{totalPending.toLocaleString("en-IN")}
+              </Text>
+            )}
+          </View>
+          <TouchableOpacity onPress={onClose} activeOpacity={0.7} className="w-9 h-9 rounded-full bg-gray-100 items-center justify-center">
+            <X size={18} color="#64748b" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Date filter */}
+        <View className="px-4 py-3">
+          <View
+            className="flex-row flex-wrap gap-2 p-1 rounded-xl"
+            style={{ backgroundColor: "#f1f5f9" }}
+          >
+            {DAY_OPTIONS.map((option) => {
+              const active = dateRangeMode === "days" && option === days;
+              return (
+                <TouchableOpacity
+                  key={option}
+                  onPress={() => { setDateRangeMode("days"); setDays(option); }}
+                  className="flex-1 min-w-[60px]"
+                  activeOpacity={0.75}
+                >
+                  <View
+                    className="py-2 rounded-lg items-center"
+                    style={{
+                      backgroundColor: active ? "#4f46e5" : "transparent",
+                    }}
+                  >
+                    <Text className={`text-xs font-bold ${active ? "text-white" : "text-gray-600"}`}>
+                      {option}D
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              onPress={() => setDateRangeMode("custom")}
+              className="flex-1 min-w-[60px]"
+              activeOpacity={0.75}
+            >
+              <View
+                className="py-2 rounded-lg flex-row items-center justify-center gap-1"
+                style={{ backgroundColor: dateRangeMode === "custom" ? "#4f46e5" : "transparent" }}
+              >
+                <Calendar size={12} color={dateRangeMode === "custom" ? "#fff" : "#64748b"} />
+                <Text className={`text-xs font-bold ${dateRangeMode === "custom" ? "text-white" : "text-gray-600"}`}>
+                  Custom
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {dateRangeMode === "custom" && (
+            <View className="mt-2 flex-row items-center gap-2">
+              <TouchableOpacity
+                onPress={() => setShowDatePicker("from")}
+                className="flex-1 rounded-xl px-3 py-2.5 flex-row items-center gap-2"
+                style={{
+                  backgroundColor: "#fff",
+                  borderWidth: 1,
+                  borderColor: showDatePicker === "from" ? "#6366f1" : "#e2e8f0",
+                }}
+                activeOpacity={0.8}
+              >
+                <Calendar size={14} color="#4f46e5" />
+                <View>
+                  <Text className="text-[10px] font-semibold text-gray-500">From</Text>
+                  <Text className="text-sm font-bold text-gray-900">{formatDateDDMMYYYY(startDate)}</Text>
+                </View>
+              </TouchableOpacity>
+              <View className="w-4 items-center">
+                <View className="w-3 h-0.5 rounded-full" style={{ backgroundColor: "#c7d2fe" }} />
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowDatePicker("to")}
+                className="flex-1 rounded-xl px-3 py-2.5 flex-row items-center gap-2"
+                style={{
+                  backgroundColor: "#fff",
+                  borderWidth: 1,
+                  borderColor: showDatePicker === "to" ? "#6366f1" : "#e2e8f0",
+                }}
+                activeOpacity={0.8}
+              >
+                <Calendar size={14} color="#4f46e5" />
+                <View>
+                  <Text className="text-[10px] font-semibold text-gray-500">To</Text>
+                  <Text className="text-sm font-bold text-gray-900">{formatDateDDMMYYYY(endDate)}</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {showDatePicker != null && (
+            <View className="mt-2">
+              <DateTimePicker
+                value={showDatePicker === "from" ? startDate : endDate}
+                mode="date"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={onDateChange}
+                maximumDate={showDatePicker === "from" ? endDate : new Date()}
+                minimumDate={showDatePicker === "to" ? startDate : undefined}
+              />
+            </View>
+          )}
+        </View>
+
+        {/* Search */}
+        <View
+          style={{
+            marginHorizontal: 16,
+            marginBottom: 8,
+            borderRadius: 10,
+            backgroundColor: "#f3f4f6",
+            flexDirection: "row",
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: "#e2e8f0",
+            paddingHorizontal: 12,
+          }}
+        >
+          <TextInput
+            placeholder="Search dealer..."
+            value={searchInput}
+            onChangeText={setSearchInput}
+            style={{ flex: 1, height: 42, color: "#1e293b", fontSize: 15 }}
+            placeholderTextColor="#94a3b8"
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+          {!!searchInput && (
+            <TouchableOpacity onPress={() => setSearchInput("")} style={{ paddingHorizontal: 8, height: 42, justifyContent: "center" }}>
+              <Text style={{ fontSize: 20, color: "#64748b" }}>×</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* List */}
+        {loading ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="large" color="#4f46e5" />
+          </View>
+        ) : (
+          <FlatList
+            data={allData}
+            keyExtractor={(item) => String(item.id)}
+            renderItem={renderItem}
+            contentContainerStyle={{ paddingBottom: 32, flexGrow: 1 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={["#4f46e5"]}
+                tintColor="#4f46e5"
+              />
+            }
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
+            ListEmptyComponent={
+              <View className="flex-1 items-center justify-center mt-10">
+                <Text className="text-gray-400 text-sm">No dealers with pending balance.</Text>
+              </View>
+            }
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={{ alignItems: "center", marginVertical: 12 }}>
+                  <ActivityIndicator size="small" color="#4f46e5" />
+                </View>
+              ) : null
+            }
+          />
+        )}
+      </View>
+    </Modal>
+  );
+}
+
+const getDefaultCustomDates = () => {
+  const today = new Date();
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(today.getDate() - 7);
+  return { start: sevenDaysAgo, end: today };
+};
+
+export default function AdminDashboard() {
+  const { start: defaultStart, end: defaultEnd } = getDefaultCustomDates();
+  const [days, setDays] = useState<number>(15);
+  const [dateRangeMode, setDateRangeMode] = useState<"days" | "custom">("custom");
+  const [startDate, setStartDate] = useState<Date>(new Date());
+  const [endDate, setEndDate] = useState<Date>(new Date());
+  const [isTodayMode, setIsTodayMode] = useState(true);
+  const [showDatePicker, setShowDatePicker] = useState<"from" | "to" | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showDealerList, setShowDealerList] = useState(false);
+
+  const apiParams = useMemo(() => {
+    if (dateRangeMode === "custom") {
+      return { start_date: formatDateYYYYMMDD(startDate), end_date: formatDateYYYYMMDD(endDate) };
+    }
+    return { days: Math.max(1, Number(days)) };
+  }, [dateRangeMode, startDate, endDate, days]);
+
+  const {
+    data,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+  } = useQuery<DashboardResponse>({
+    queryKey: ["admin-dashboard", apiParams],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (dateRangeMode === "custom") {
+        params.set("start_date", formatDateYYYYMMDD(startDate));
+        params.set("end_date", formatDateYYYYMMDD(endDate));
+      } else {
+        params.set("days", String(Math.max(1, Number(days))));
+      }
+      const res = await api.get(`/draw-result/admin-dashboard/?${params.toString()}`);
+      return res.data;
+    },
+  });
+
+  const onDateChange = useCallback(
+    (event: { type: string }, selectedDate?: Date) => {
+      setShowDatePicker(null);
+      if (event.type !== "set" || !selectedDate) return;
+      if (showDatePicker === "from") {
+        setStartDate(selectedDate);
+        if (selectedDate > endDate) setEndDate(selectedDate);
+      } else if (showDatePicker === "to") {
+        setEndDate(selectedDate);
+        if (selectedDate < startDate) setStartDate(selectedDate);
+      }
+    },
+    [showDatePicker, startDate, endDate]
+  );
+
+  const summary = data?.summary;
+  const daily = data?.daily ?? [];
+  const draws = data?.draws ?? [];
+
+  const maxDailySales = useMemo(
+    () => (daily.length ? Math.max(...daily.map((d) => d.sales)) : 0),
+    [daily]
+  );
+
+  const maxDailyProfit = useMemo(
+    () => (daily.length ? Math.max(...daily.map((d) => d.profit)) : 0),
+    [daily]
+  );
+
+  const maxDrawSales = useMemo(
+    () => (draws.length ? Math.max(...draws.map((d) => d.sales)) : 0),
+    [draws]
+  );
+
+  const maxDrawProfit = useMemo(
+    () => (draws.length ? Math.max(...draws.map((d) => d.profit)) : 0),
+    [draws]
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const formatAmount = (value?: number | null) => {
+    if (value == null) return "₹0.00";
+    return `₹${value.toFixed(2)}`;
+  };
+
+  return (
+    <View className="flex-1 bg-white">
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingBottom: 24 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing || isFetching}
+            onRefresh={onRefresh}
+            colors={["#6366f1"]}
+            tintColor="#6366f1"
+          />
+        }
+      >
+        {/* Header */}
+        <View className="px-4 pt-4 pb-2 flex-row items-center justify-between">
+          <View>
+            <Text className="text-xl font-extrabold text-gray-900">
+              Admin Dashboard
+            </Text>
+            <Text className="text-xs text-gray-500 mt-1">
+              Overview of sales, winnings and profit
+            </Text>
+          </View>
+          <View className="w-10 h-10 rounded-full bg-indigo-100 items-center justify-center">
+            <BarChart3 size={20} color="#4f46e5" />
+          </View>
+        </View>
+
+        {/* Dealer pending summary (top) */}
+        {summary?.total_dealer_pending != null && (
+          <TouchableOpacity
+            className="px-4 mt-1 mb-1"
+            activeOpacity={0.7}
+            onPress={() => setShowDealerList(true)}
+          >
+            <View
+              className="rounded-2xl px-4 py-3 flex-row items-center justify-between"
+              style={{
+                backgroundColor: "#ecfdf3",
+                borderWidth: 1,
+                borderColor: "#bbf7d0",
+                shadowColor: "#16a34a",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.08,
+                shadowRadius: 4,
+                elevation: 2,
+              }}
+            >
+              <View className="flex-1 mr-3">
+                <Text className="text-[11px] text-emerald-700 font-semibold mb-1">
+                  Total Dealer Pending
+                </Text>
+                <Text className="text-xl font-extrabold text-emerald-900">
+                  {formatAmount(summary.total_dealer_pending)}
+                </Text>
+              </View>
+              <View className="w-10 h-10 rounded-full bg-emerald-100 items-center justify-center">
+                <Wallet size={18} color="#047857" />
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* Date range filter */}
+        <View className="px-4 mt-1 mb-3">
+          <View
+            className="overflow-hidden rounded-2xl"
+            style={{
+              backgroundColor: "#f8fafc",
+              borderWidth: 1,
+              borderColor: "#e2e8f0",
+              shadowColor: "#64748b",
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.04,
+              shadowRadius: 4,
+              elevation: 2,
+            }}
+          >
+            <View className="px-4 py-3">
+              <View className="flex-row items-center gap-2 mb-3">
+                <View
+                  className="w-7 h-7 rounded-lg items-center justify-center"
+                  style={{ backgroundColor: "#eef2ff" }}
+                >
+                  <Calendar size={14} color="#4f46e5" />
+                </View>
+                <Text className="text-sm font-bold text-gray-800">Date range</Text>
+              </View>
+
+              {/* Preset + Custom tabs */}
+              <View
+                className="flex-row flex-wrap gap-2 p-1 rounded-xl"
+                style={{ backgroundColor: "#f1f5f9" }}
+              >
+                {/* Today button */}
+                <TouchableOpacity
+                  onPress={() => {
+                    const today = new Date();
+                    setDateRangeMode("custom");
+                    setStartDate(today);
+                    setEndDate(today);
+                    setIsTodayMode(true);
+                  }}
+                  className="flex-1 min-w-[72px]"
+                  activeOpacity={0.75}
+                >
+                  <View
+                    className="py-2.5 rounded-lg items-center"
+                    style={{
+                      backgroundColor: isTodayMode ? "#4f46e5" : "transparent",
+                      shadowColor: isTodayMode ? "#4f46e5" : undefined,
+                      shadowOffset: isTodayMode ? { width: 0, height: 2 } : undefined,
+                      shadowOpacity: isTodayMode ? 0.25 : 0,
+                      shadowRadius: isTodayMode ? 4 : 0,
+                      elevation: isTodayMode ? 2 : 0,
+                    }}
+                  >
+                    <Text
+                      className={`text-xs font-bold ${isTodayMode ? "text-white" : "text-gray-600"}`}
+                    >
+                      Today
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {DAY_OPTIONS.map((option) => {
+                  const active = !isTodayMode && dateRangeMode === "days" && option === days;
+                  return (
+                    <TouchableOpacity
+                      key={option}
+                      onPress={() => {
+                        setDateRangeMode("days");
+                        setDays(option);
+                        setIsTodayMode(false);
+                      }}
+                      className="flex-1 min-w-[72px]"
+                      activeOpacity={0.75}
+                    >
+                      <View
+                        className="py-2.5 rounded-lg items-center"
+                        style={{
+                          backgroundColor: active ? "#4f46e5" : "transparent",
+                          shadowColor: active ? "#4f46e5" : undefined,
+                          shadowOffset: active ? { width: 0, height: 2 } : undefined,
+                          shadowOpacity: active ? 0.25 : 0,
+                          shadowRadius: active ? 4 : 0,
+                          elevation: active ? 2 : 0,
+                        }}
+                      >
+                        <Text
+                          className={`text-xs font-bold ${active ? "text-white" : "text-gray-600"
+                            }`}
+                        >
+                          {option} days
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+                <TouchableOpacity
+                  onPress={() => {
+                    setDateRangeMode("custom");
+                    setIsTodayMode(false);
+                  }}
+                  className="flex-1 min-w-[72px]"
+                  activeOpacity={0.75}
+                >
+                  {(() => {
+                    const customActive = dateRangeMode === "custom" && !isTodayMode;
+                    return (
+                      <View
+                        className="py-2.5 rounded-lg flex-row items-center justify-center gap-1.5"
+                        style={{
+                          backgroundColor: customActive ? "#4f46e5" : "transparent",
+                          shadowColor: customActive ? "#4f46e5" : undefined,
+                          shadowOffset: customActive ? { width: 0, height: 2 } : undefined,
+                          shadowOpacity: customActive ? 0.25 : 0,
+                          shadowRadius: customActive ? 4 : 0,
+                          elevation: customActive ? 2 : 0,
+                        }}
+                      >
+                        <Calendar size={13} color={customActive ? "#fff" : "#64748b"} />
+                        <Text
+                          className={`text-xs font-bold ${customActive ? "text-white" : "text-gray-600"}`}
+                        >
+                          Custom
+                        </Text>
+                      </View>
+                    );
+                  })()}
+                </TouchableOpacity>
+              </View>
+
+              {dateRangeMode === "custom" && !isTodayMode ? (
+                <View className="mt-3 flex-row items-stretch gap-2">
+                  <TouchableOpacity
+                    onPress={() => setShowDatePicker("from")}
+                    className="flex-1 rounded-xl px-4 py-3 flex-row items-center gap-2"
+                    style={{
+                      backgroundColor: "#fff",
+                      borderWidth: showDatePicker === "from" ? 2 : 1,
+                      borderColor: showDatePicker === "from" ? "#6366f1" : "#e2e8f0",
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 3,
+                      elevation: 1,
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <View className="w-9 h-9 rounded-xl bg-indigo-50 items-center justify-center">
+                      <Calendar size={16} color="#4f46e5" />
+                    </View>
+                    <View>
+                      <Text className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                        From
+                      </Text>
+                      <Text className="text-base font-bold text-gray-900 mt-0.5">
+                        {formatDateDDMMYYYY(startDate)}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <View
+                    className="w-8 items-center justify-center"
+                    style={{ marginHorizontal: -4 }}
+                  >
+                    <View
+                      className="w-6 h-0.5 rounded-full"
+                      style={{ backgroundColor: "#c7d2fe" }}
+                    />
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => setShowDatePicker("to")}
+                    className="flex-1 rounded-xl px-4 py-3 flex-row items-center gap-2"
+                    style={{
+                      backgroundColor: "#fff",
+                      borderWidth: showDatePicker === "to" ? 2 : 1,
+                      borderColor: showDatePicker === "to" ? "#6366f1" : "#e2e8f0",
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 3,
+                      elevation: 1,
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <View className="w-9 h-9 rounded-xl bg-indigo-50 items-center justify-center">
+                      <Calendar size={16} color="#4f46e5" />
+                    </View>
+                    <View>
+                      <Text className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                        To
+                      </Text>
+                      <Text className="text-base font-bold text-gray-900 mt-0.5">
+                        {formatDateDDMMYYYY(endDate)}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <Text className="text-xs text-gray-500 mt-2.5 font-medium">
+                  {isTodayMode ? "Showing data for today" : `Showing data for the last ${days} days`}
+                </Text>
+              )}
+            </View>
+
+            {showDatePicker != null && (
+              <View className="px-4 pb-3">
+                <DateTimePicker
+                  value={showDatePicker === "from" ? startDate : endDate}
+                  mode="date"
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  onChange={onDateChange}
+                  maximumDate={showDatePicker === "from" ? endDate : new Date()}
+                  minimumDate={showDatePicker === "to" ? startDate : undefined}
+                />
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Loading / Error */}
+        {isLoading ? (
+          <View className="mt-10 items-center justify-center">
+            <ActivityIndicator size="large" color="#4f46e5" />
+          </View>
+        ) : error ? (
+          <View className="mt-10 mx-4 p-4 rounded-2xl bg-red-50 border border-red-200">
+            <Text className="text-sm font-semibold text-red-700 mb-1">
+              Failed to load dashboard
+            </Text>
+            {/* @ts-ignore */}
+            <Text className="text-xs text-red-600">
+              {error?.message || "Unknown error"}
+            </Text>
+            <TouchableOpacity
+              onPress={() => refetch()}
+              className="mt-3 self-start px-3 py-1.5 rounded-full bg-red-600"
+              activeOpacity={0.8}
+            >
+              <Text className="text-xs font-semibold text-white">Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {/* Summary cards */}
+            <View className="mx-4 mt-1 flex-row gap-3">
+              <View className="flex-1 bg-indigo-50 border border-indigo-100 rounded-2xl p-3">
+                <Text className="text-[11px] text-indigo-700 mb-1">Sales</Text>
+                <Text className="text-lg font-extrabold text-indigo-900">
+                  {formatAmount(summary?.sales)}
+                </Text>
+                <Text className="text-[10px] text-indigo-500 mt-1">
+                  Total booking amount
+                </Text>
+              </View>
+
+              <View className="flex-1 bg-emerald-50 border border-emerald-100 rounded-2xl p-3">
+                <View className="flex-row items-center justify-between mb-2">
+                  <Text className="text-[11px] text-emerald-700 font-semibold">
+                    Payments
+                  </Text>
+                  <Wallet size={14} color="#047857" />
+                </View>
+                <View className="mt-1">
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-[10px] text-emerald-600">
+                      Paid:
+                    </Text>
+                    <Text className="text-sm font-semibold text-emerald-900">
+                      {formatAmount(summary?.total_paid_amount)}
+                    </Text>
+                  </View>
+                  <View className="flex-row items-center justify-between mt-1.5">
+                    <Text className="text-[10px] text-emerald-600">
+                      Received:
+                    </Text>
+                    <Text className="text-sm font-semibold text-emerald-900">
+                      {formatAmount(summary?.total_received_amount)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            <View className="mx-4 mt-3 flex-row gap-3">
+              <View className="flex-1 bg-amber-50 border border-amber-100 rounded-2xl p-3">
+                <View className="flex-row items-center justify-between mb-1">
+                  <Text className="text-[11px] text-amber-700">Winnings</Text>
+                  <Wallet size={14} color="#b45309" />
+                </View>
+                <Text className="text-lg font-extrabold text-amber-900">
+                  {formatAmount(summary?.winnings)}
+                </Text>
+                <Text className="text-[10px] text-amber-500 mt-1">
+                  Total winnings
+                </Text>
+              </View>
+
+              <View className="flex-1 bg-emerald-50 border border-emerald-100 rounded-2xl p-3">
+                <View className="flex-row items-center justify-between mb-1">
+                  <Text className="text-[11px] text-emerald-700">Profit</Text>
+                  <TrendingUp size={14} color="#047857" />
+                </View>
+                <Text className="text-lg font-extrabold text-emerald-900">
+                  {formatAmount(summary?.profit)}
+                </Text>
+                <Text className="text-[10px] text-emerald-500 mt-1">
+                  Sales - commission - winnings
+                </Text>
+              </View>
+            </View>
+
+            {/* Dealer Pending (date-range scoped) */}
+            {summary?.dealer_pending != null && (
+              <View className="mx-4 mt-3 flex-row gap-3">
+                <View className="flex-1 bg-orange-50 border border-orange-100 rounded-2xl p-3">
+                  <View className="flex-row items-center justify-between mb-1">
+                    <Text className="text-[11px] text-orange-700">Dealer Pending</Text>
+                    <Wallet size={14} color="#c2410c" />
+                  </View>
+                  <Text className="text-lg font-extrabold text-orange-900">
+                    {formatAmount(summary.dealer_pending)}
+                  </Text>
+                  <Text className="text-[10px] text-orange-500 mt-1">
+                    Pending for selected date range
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Draw breakdown */}
+            <View className="mx-4 mt-4 mb-6 bg-white border border-gray-200 rounded-2xl p-4">
+              <View className="flex-row items-center justify-between mb-3">
+                <View className="flex-row items-center">
+                  <PieChart size={16} color="#4b5563" />
+                  <Text className="ml-1.5 text-sm font-semibold text-gray-800">
+                    Draw breakdown
+                  </Text>
+                </View>
+              </View>
+
+              {draws.length === 0 ? (
+                <Text className="text-[11px] text-gray-500 py-2">
+                  No draws in this range.
+                </Text>
+              ) : (
+                draws.map((draw) => {
+                  const salesPct =
+                    maxDrawSales > 0
+                      ? Math.max(2, (draw.sales / maxDrawSales) * 100)
+                      : 0;
+                  const profitPct =
+                    maxDrawProfit > 0
+                      ? Math.max(2, (draw.profit / maxDrawProfit) * 100)
+                      : 0;
+
+                  return (
+                    <View
+                      key={draw.name}
+                      className="mb-4 pb-4 border-b border-gray-100 last:border-b-0 last:pb-0 last:mb-0"
+                    >
+                      <Text className="text-sm mt-4 font-semibold text-gray-800 mb-1">
+                        {draw.name}
+                      </Text>
+                      <View className="flex-row items-center justify-between mb-1.5">
+                        <Text className="text-[11px] text-gray-500">Sales</Text>
+                        <Text className="text-[11px] font-medium text-gray-800">
+                          {formatAmount(draw.sales)}
+                        </Text>
+                      </View>
+                      <View
+                        className="h-2 bg-gray-100 rounded-full overflow-hidden"
+                        style={{ marginBottom: 10 }}
+                      >
+                        <View
+                          style={{
+                            height: "100%",
+                            width: `${salesPct}%`,
+                            backgroundColor: "#6366f1",
+                            borderRadius: 4,
+                          }}
+                        />
+                      </View>
+                      <View className="flex-row items-center justify-between mb-1.5">
+                        <Text className="text-[11px] text-gray-500">Profit</Text>
+                        <Text className="text-[11px] font-medium text-emerald-700">
+                          {formatAmount(draw.profit)}
+                        </Text>
+                      </View>
+                      <View className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <View
+                          style={{
+                            height: "100%",
+                            width: `${profitPct}%`,
+                            backgroundColor: "#34d399",
+                            borderRadius: 4,
+                          }}
+                        />
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </View>
+          </>
+        )}
+      </ScrollView>
+
+      <DealerPendingModal
+        visible={showDealerList}
+        onClose={() => setShowDealerList(false)}
+        initialDateRangeMode={dateRangeMode}
+        initialDays={days}
+        initialStartDate={startDate}
+        initialEndDate={endDate}
+      />
+    </View>
+  );
+}
+

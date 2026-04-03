@@ -1,0 +1,28 @@
+build doc
+
+npx expo prebuild --platform android
+
+cd android;
+.\gradlew assembleRelease
+
+
+
+
+cd app/build/outputs/apk/release
+explorer .
+
+
+cd ../../../../../../ 
+
+test dealer :
+username: test1
+password: test
+
+super admin
+username: adm
+password: adm
+
+ git format-patch -1 HEAD -o patches        
+
+git apply .\patches\0001-git-ignore.patch  
+
