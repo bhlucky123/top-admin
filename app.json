@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "calculator",
-    "slug": "calculator",
+    "name": "Top Admin",
+    "slug": "top-admin",
     "version": "1.0.0",
-    "scheme": "calculator",
+    "scheme": "top-admin",
     "newArchEnabled": true,
     "userInterfaceStyle": "automatic",
     "web": {
@@ -14,7 +14,7 @@
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#000000"
+      "backgroundColor": "#1E1B4B"
     },
     "plugins": [
       "expo-router",
@@ -32,7 +32,7 @@
       }
     },
     "android": {
-      "package": "com.luckybh.calculator",
+      "package": "com.luckybh.topadmin",
       "icon": "./assets/images/admin-appicon.png"
     },
     "icon": "./assets/images/admin-appicon.png"

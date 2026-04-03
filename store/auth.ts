@@ -1,15 +1,15 @@
-import { config, UserType } from "@/utils/config";
+import { config } from "@/utils/config";
 import { router } from "expo-router";
 import { create } from "zustand";
 
 interface User {
-  id: string;
+  id: number;
   username: string;
-  user_type: "DEALER" | "AGENT" | "ADMIN";
-  commission: number;
-  single_digit_number_commission: number;
-  cap_amount: number;
-  superuser?: boolean
+  user_type: "ADMINISTRATOR";
+  superuser: boolean;
+  is_main_vendor?: boolean;
+  vendor_name?: string | null;
+  application_status?: boolean;
 }
 
 interface AuthState {
@@ -17,132 +17,86 @@ interface AuthState {
   token: string | null;
   loading: boolean;
   error: string | null;
-  preLoginToken: string | null;
-  preLoginUserType: UserType | null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
-  setUser: (user: User | null) => void;
-  setPreLogin: (token: string, userType: UserType) => void;
-  application_status: boolean;
-  setApplicationStatus: (status: boolean) => void;
 }
 
-const LOGIN_URLS: Record<UserType, string> = {
-  ADMIN: `${config.apiBaseUrl}/administrator/login/`,
-  DEALER: `${config.apiBaseUrl}/dealer/login/`,
-  AGENT: `${config.apiBaseUrl}/agent/login/`,
-};
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  token: null,
+  loading: false,
+  error: null,
 
-export const useAuthStore = create<AuthState>((set, get) => {
-  return {
-    user: null,
-    token: null,
-    loading: false,
-    error: null,
-    preLoginToken: null,
-    preLoginUserType: null,
-    application_status: true,
+  login: async (username, password) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await fetch(
+        `${config.apiBaseUrl}/administrator/login/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        }
+      );
 
-    setPreLogin: (token, userType) => set({ preLoginToken: token, preLoginUserType: userType }),
-
-    login: async (username, password) => {
-      const { preLoginToken, preLoginUserType } = get();
-
-      if (!preLoginToken || !preLoginUserType) {
-        set({ error: "Session expired. Please verify again.", loading: false });
-        setTimeout(() => set({ error: "" }), 3000);
+      if (!response.ok) {
+        let errorMsg = `Login failed (${response.status})`;
+        try {
+          const text = await response.text();
+          const parsed = JSON.parse(text);
+          if (parsed.non_field_errors?.[0]) {
+            errorMsg = parsed.non_field_errors[0];
+          } else if (parsed.error) {
+            errorMsg = parsed.error;
+          } else if (parsed.detail) {
+            errorMsg = parsed.detail;
+          }
+        } catch {
+          // fallback to default
+        }
+        set({ error: errorMsg, loading: false });
+        setTimeout(() => set({ error: null }), 4000);
         return;
       }
 
-      set({ loading: true, error: null });
-      try {
-        const loginUrl = LOGIN_URLS[preLoginUserType];
+      const data = await response.json();
+      const details = data.user_details;
 
-        const response = await fetch(loginUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "User-Type": preLoginUserType,
-          },
-          body: JSON.stringify({
-            username,
-            password,
-            pre_login_token: preLoginToken,
-          }),
-        });
-
-        if (!response.ok) {
-          let errorMsg = `Login failed: ${response.status}`;
-          try {
-            const text = await response.text();
-            let parsed;
-            try {
-              parsed = JSON.parse(text);
-            } catch {
-              // Not JSON, fallback to text
-            }
-            if (parsed && typeof parsed === "object") {
-              if (parsed.non_field_errors && Array.isArray(parsed.non_field_errors) && parsed.non_field_errors.length > 0) {
-                errorMsg = parsed.non_field_errors[0];
-              } else if (parsed.error) {
-                errorMsg = parsed.error;
-              } else if (parsed.detail) {
-                errorMsg = parsed.detail;
-              } else {
-                errorMsg = text;
-              }
-            } else if (text) {
-              errorMsg = text;
-            }
-          } catch (e) {
-            // fallback to default errorMsg
-          }
-
-          // If token expired/invalid, clear pre-login state so user goes back to calculator
-          if (errorMsg.includes("token")) {
-            set({ preLoginToken: null, preLoginUserType: null });
-          }
-
-          set({
-            error: errorMsg,
-            loading: false,
-          });
-
-          setTimeout(() => {
-            set({ error: "" });
-          }, 3000);
-
-          return;
-        }
-
-        const data = await response.json();
-        console.log("data", data);
+      if (!details?.superuser) {
         set({
-          user: {
-            id: data.user_details?.user_id,
-            user_type: preLoginUserType,
-            superuser: data?.user_details?.superuser || false,
-            ...data?.user_details
-          },
-          token: data.access,
+          error: "Access denied. Only super admin accounts can log in.",
           loading: false,
-          error: null,
-          preLoginToken: null,
-          preLoginUserType: null,
         });
-        router.push("/(tabs)");
-      } catch (err: any) {
-        console.log("err", err);
-        set({ error: err.message || "Login failed", loading: false });
+        setTimeout(() => set({ error: null }), 4000);
+        return;
       }
-    },
 
-    logout: () => {
-      set({ user: null, token: null, preLoginToken: null, preLoginUserType: null });
-    },
+      set({
+        user: {
+          id: details.user_id,
+          username: details.username,
+          user_type: "ADMINISTRATOR",
+          superuser: details.superuser,
+          is_main_vendor: details.is_main_vendor,
+          vendor_name: details.vendor_name,
+          application_status: details.application_status,
+        },
+        token: data.access,
+        loading: false,
+        error: null,
+      });
+      router.replace("/(tabs)");
+    } catch (err: any) {
+      set({
+        error: err.message || "Network error. Please try again.",
+        loading: false,
+      });
+      setTimeout(() => set({ error: null }), 4000);
+    }
+  },
 
-    setUser: (user) => set({ user }),
-
-    setApplicationStatus: (status: boolean) => set({ application_status: status })
-  };
-});
+  logout: () => {
+    set({ user: null, token: null, error: null });
+    router.replace("/");
+  },
+}));

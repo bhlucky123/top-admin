@@ -1,63 +1,54 @@
 import api from "@/utils/axios";
 import { useMutation } from "@tanstack/react-query";
 
-type Staff = {
-  id: string;
+export type Admin = {
+  id: number;
   username: string;
   is_active: boolean;
+  vendor?: number;
+  is_main_vendor?: boolean;
+  calculate_str?: string;
+  secret_pin?: number;
 };
 
-type CreateStaffParams = {
-  password: string;
+type CreateAdminParams = {
   username: string;
+  password: string;
   is_active: boolean;
+  vendor: number;
+  is_main_vendor: boolean;
   calculate_str: string;
   secret_pin: number;
-  commission: number;
-  single_digit_number_commission: number;
-  cap_amount: number;
 };
 
-type EditStaffParams = Partial<CreateStaffParams> & { id: string };
-type DeleteStaffParams = { id: string };
+type EditAdminParams = Partial<CreateAdminParams> & { id: number };
+type DeleteAdminParams = { id: number };
 
 const useStaff = () => {
-  const createMutation = useMutation<Staff, Error, CreateStaffParams>({
+  const createMutation = useMutation<Admin, any, CreateAdminParams>({
     mutationFn: (payload) =>
       api.post("/administrator/administrator/", payload).then((res) => res.data),
   });
 
-  const editMutation = useMutation<Staff, Error, EditStaffParams>({
+  const editMutation = useMutation<Admin, any, EditAdminParams>({
     mutationFn: ({ id, ...payload }) =>
       api.patch(`/administrator/administrator/${id}/`, payload).then((res) => res.data),
   });
 
-  const deleteMutation = useMutation<void, Error, DeleteStaffParams>({
+  const deleteMutation = useMutation<void, any, DeleteAdminParams>({
     mutationFn: ({ id }) =>
       api.delete(`/administrator/administrator/${id}/`).then((res) => res.data),
   });
 
   return {
-    // Create
-    createStaff: createMutation.mutate,
-    createStaffAsync: createMutation.mutateAsync,
-    staffCreatingIsLoading: createMutation.isPending,
-    staffCreateError: createMutation.error,
-    staffCreateIsSuccess: createMutation.isSuccess,
+    createAdmin: createMutation.mutate,
+    isCreating: createMutation.isPending,
 
-    // Edit
-    editStaff: editMutation.mutate,
-    editStaffAsync: editMutation.mutateAsync,
-    staffEditingIsLoading: editMutation.isPending,
-    staffEditError: editMutation.error,
-    staffEditIsSuccess: editMutation.isSuccess,
+    editAdmin: editMutation.mutate,
+    isEditing: editMutation.isPending,
 
-    // Delete
-    deleteStaff: deleteMutation.mutate,
-    deleteStaffAsync: deleteMutation.mutateAsync,
-    staffDeletingIsLoading: deleteMutation.isPending,
-    staffDeleteError: deleteMutation.error,
-    staffDeleteIsSuccess: deleteMutation.isSuccess,
+    deleteAdmin: deleteMutation.mutate,
+    isDeleting: deleteMutation.isPending,
   };
 };
 
