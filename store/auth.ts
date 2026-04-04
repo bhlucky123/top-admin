@@ -10,6 +10,7 @@ interface User {
   is_main_vendor?: boolean;
   vendor_name?: string | null;
   application_status?: boolean;
+  vendor_features: string[];
 }
 
 interface AuthState {
@@ -19,6 +20,7 @@ interface AuthState {
   error: string | null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  hasFeature: (codename: string) => boolean;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -80,6 +82,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           is_main_vendor: details.is_main_vendor,
           vendor_name: details.vendor_name,
           application_status: details.application_status,
+          vendor_features: details.vendor_features ?? [],
         },
         token: data.access,
         loading: false,
@@ -98,5 +101,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     set({ user: null, token: null, error: null });
     router.replace("/");
+  },
+
+  hasFeature: (codename: string) => {
+    const user = useAuthStore.getState().user;
+    if (!user) return false;
+    if (user.superuser) return true;
+    return user.vendor_features.includes(codename);
   },
 }));

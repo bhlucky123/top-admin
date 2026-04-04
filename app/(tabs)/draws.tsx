@@ -1,7 +1,9 @@
 import useDraw, { Draw } from "@/hooks/use-draw";
 import api from "@/utils/axios";
+import { AntDesign, Feather } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Clock, MoveLeft, Palette, Plus, Search, Ticket } from "lucide-react-native";
+import { Clock, Palette, Plus, Search, Ticket } from "lucide-react-native";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -12,178 +14,372 @@ import {
   RefreshControl,
   ScrollView,
   StatusBar,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 
-// --- Draw Form ---
-function DrawForm({
-  onSubmit,
-  defaultValues,
-  onCancel,
-  submitting,
-}: {
-  onSubmit: (data: any) => void;
-  defaultValues?: Partial<Draw>;
-  onCancel: () => void;
-  submitting: boolean;
-}) {
-  const [form, setForm] = useState({
-    name: defaultValues?.name || "",
-    valid_from: defaultValues?.valid_from || "",
-    valid_till: defaultValues?.valid_till || "",
-    cut_off_time: defaultValues?.cut_off_time || "",
-    draw_time: defaultValues?.draw_time || "",
-    color_theme: defaultValues?.color_theme || "#6366f1",
-    non_single_digit_price: defaultValues?.non_single_digit_price?.toString() || "",
-    single_digit_number_price: defaultValues?.single_digit_number_price?.toString() || "",
-  });
+const getContrastYIQ = (hexcolor: string) => {
+  const r = parseInt(hexcolor.slice(1, 3), 16);
+  const g = parseInt(hexcolor.slice(3, 5), 16);
+  const b = parseInt(hexcolor.slice(5, 7), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 128 ? "#000000" : "#ffffff";
+};
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [focusedField, setFocusedField] = useState<string | null>(null);
-  const isEdit = !!defaultValues?.id;
+// --- Draw Form ---
+const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => void }) => {
+  const isEdit = !!initialData;
+  const [form, setForm] = useState(
+    initialData
+      ? {
+          ...initialData,
+          valid_from: new Date(initialData.valid_from),
+          valid_till: new Date(initialData.valid_till),
+          cut_off_time: new Date(`1970-01-01T${initialData.cut_off_time}`),
+          draw_time: new Date(`1970-01-01T${initialData.draw_time}`),
+        }
+      : {
+          name: "",
+          valid_from: new Date(),
+          valid_till: new Date(),
+          cut_off_time: new Date(),
+          draw_time: new Date(),
+          color_theme: "#8B5CF6",
+          non_single_digit_price: "",
+          single_digit_number_price: "",
+        }
+  );
+  const [showDatePicker, setShowDatePicker] = useState<null | string>(null);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [submitting, setSubmitting] = useState(false);
+
+  const { createDraw, updateDraw } = useDraw();
+  const queryClient = useQueryClient();
 
   const validate = () => {
-    const newErrors: Record<string, string> = {};
-    if (!form.name.trim()) newErrors.name = "Name is required";
-    if (!form.valid_from.trim()) newErrors.valid_from = "Required";
-    if (!form.valid_till.trim()) newErrors.valid_till = "Required";
-    if (!form.cut_off_time.trim()) newErrors.cut_off_time = "Required";
-    if (!form.draw_time.trim()) newErrors.draw_time = "Required";
-    if (!form.non_single_digit_price) newErrors.non_single_digit_price = "Required";
-    if (!form.single_digit_number_price) newErrors.single_digit_number_price = "Required";
+    const newErrors: { [key: string]: string } = {};
+
+    if (!form.name || !form.name.trim()) {
+      newErrors.name = "Draw name is required";
+    } else if (form.name.length < 2) {
+      newErrors.name = "Draw name is too short";
+    }
+
+    if (!form.color_theme) {
+      newErrors.color_theme = "Color theme is required";
+    }
+
+    if (
+      form.non_single_digit_price === "" ||
+      isNaN(Number(form.non_single_digit_price)) ||
+      Number(form.non_single_digit_price) <= 0
+    ) {
+      newErrors.non_single_digit_price = "Enter a valid price";
+    }
+    if (
+      form.single_digit_number_price === "" ||
+      isNaN(Number(form.single_digit_number_price)) ||
+      Number(form.single_digit_number_price) <= 0
+    ) {
+      newErrors.single_digit_number_price = "Enter a valid price";
+    }
+
+    if (!(form.valid_from instanceof Date) || isNaN(form.valid_from.getTime())) {
+      newErrors.valid_from = "Valid from date is required";
+    }
+    if (!(form.valid_till instanceof Date) || isNaN(form.valid_till.getTime())) {
+      newErrors.valid_till = "Valid till date is required";
+    }
+    if (
+      form.valid_from instanceof Date &&
+      form.valid_till instanceof Date &&
+      form.valid_till < form.valid_from
+    ) {
+      newErrors.valid_till = "Valid till must be after valid from";
+    }
+
+    if (!(form.cut_off_time instanceof Date) || isNaN(form.cut_off_time.getTime())) {
+      newErrors.cut_off_time = "Cut off time is required";
+    }
+    if (!(form.draw_time instanceof Date) || isNaN(form.draw_time.getTime())) {
+      newErrors.draw_time = "Draw time is required";
+    }
+    if (
+      form.cut_off_time instanceof Date &&
+      form.draw_time instanceof Date &&
+      (form.cut_off_time.getHours() > form.draw_time.getHours() ||
+        (form.cut_off_time.getHours() === form.draw_time.getHours() &&
+          form.cut_off_time.getMinutes() >= form.draw_time.getMinutes()))
+    ) {
+      newErrors.cut_off_time = "Cut off time must be before draw time";
+    }
+
     setErrors(newErrors);
+
+    setTimeout(() => {
+      setErrors({});
+    }, 3000);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleChange = (key: string, value: string) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    setErrors((prev) => ({ ...prev, [key]: "" }));
-  };
-
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (submitting) return;
     if (!validate()) return;
-    onSubmit({
-      ...form,
+
+    setSubmitting(true);
+
+    const formatTime = (date: Date) => {
+      const pad = (n: number) => n.toString().padStart(2, "0");
+      return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    };
+
+    const data = {
+      name: form.name,
+      valid_from: form.valid_from.toISOString().split("T")[0],
+      valid_till: form.valid_till.toISOString().split("T")[0],
+      cut_off_time: formatTime(form.cut_off_time),
+      draw_time: formatTime(form.draw_time),
+      color_theme: form.color_theme,
       non_single_digit_price: Number(form.non_single_digit_price),
       single_digit_number_price: Number(form.single_digit_number_price),
-      ...(isEdit ? { id: defaultValues?.id } : {}),
-    });
+    };
+
+    try {
+      if (isEdit) {
+        const updated = await updateDraw.mutateAsync({ ...data, id: initialData.id });
+        queryClient.setQueryData(["draws"], (old: any) =>
+          old?.map((d: any) => (d.id === updated.id ? updated : d))
+        );
+      } else {
+        await createDraw.mutateAsync(data as any);
+        await queryClient.invalidateQueries({ queryKey: ["draws"] });
+      }
+      onClose();
+    } catch (err: any) {
+      const msg = typeof err === "string" ? err : err?.message || "Something went wrong";
+      Alert.alert("Error", typeof msg === "string" ? msg : JSON.stringify(msg));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const fields = [
-    { key: "name", label: "Draw Name", keyboard: "default" as const, placeholder: "e.g. Morning Draw" },
-    { key: "valid_from", label: "Valid From (Time)", keyboard: "default" as const, placeholder: "HH:MM:SS e.g. 09:00:00" },
-    { key: "valid_till", label: "Valid Till (Time)", keyboard: "default" as const, placeholder: "HH:MM:SS e.g. 12:00:00" },
-    { key: "cut_off_time", label: "Cut-off Time", keyboard: "default" as const, placeholder: "HH:MM:SS e.g. 11:30:00" },
-    { key: "draw_time", label: "Draw Time", keyboard: "default" as const, placeholder: "HH:MM:SS e.g. 12:00:00" },
-    { key: "color_theme", label: "Color Theme (Hex)", keyboard: "default" as const, placeholder: "#6366f1" },
-    { key: "non_single_digit_price", label: "Non-Single Digit Price", keyboard: "numeric" as const, placeholder: "e.g. 10" },
-    { key: "single_digit_number_price", label: "Single Digit Price", keyboard: "numeric" as const, placeholder: "e.g. 100" },
+  const colorPalette = [
+    "#8B5CF6", "#F59E42", "#F43F5E", "#10B981", "#3B82F6",
+    "#FBBF24", "#6366F1", "#A21CAF", "#F472B6", "#22D3EE",
   ];
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
-
-      <View className="bg-white shadow-sm border-b border-gray-100">
-        <View className="flex-row items-center justify-between px-6 pt-14 pb-4">
-          <TouchableOpacity
-            onPress={onCancel}
-            className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
-            activeOpacity={0.7}
-          >
-            <MoveLeft size={22} color="#4B5563" />
-          </TouchableOpacity>
-          <Text className="text-xl font-bold text-gray-800">
-            {isEdit ? "Edit Draw" : "New Draw"}
-          </Text>
-          <View className="w-10" />
-        </View>
-      </View>
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        className="flex-1"
+    <KeyboardAvoidingView style={styles.formContainer}>
+      <ScrollView
+        style={styles.formScroll}
+        contentContainerStyle={styles.formContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          className="flex-1 px-6 pt-6"
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 60 }}
-        >
-          {fields.map(({ key, label, keyboard, placeholder }) => {
-            const isFocused = focusedField === key;
-            const hasError = !!errors[key];
-            const value = form[key as keyof typeof form];
-            const hasValue = !!value;
+        <TouchableOpacity style={styles.backBtn} onPress={onClose}>
+          <AntDesign name="arrowleft" size={24} color="#6366F1" />
+          <Text style={styles.backBtnText}>Back</Text>
+        </TouchableOpacity>
 
-            return (
-              <View key={key} className="mb-5">
-                <Text className="text-gray-700 font-semibold mb-2 ml-1">
-                  {label} <Text className="text-red-500">*</Text>
-                </Text>
-                <View className="relative">
-                  <TextInput
-                    placeholder={placeholder}
-                    className={`border-2 rounded-xl px-4 py-3.5 bg-white text-gray-800 font-medium ${
-                      hasError
-                        ? "border-red-300 bg-red-50"
-                        : isFocused
-                        ? "border-indigo-400 bg-indigo-50"
-                        : hasValue
-                        ? "border-green-300 bg-green-50"
-                        : "border-gray-200"
-                    }`}
-                    value={value}
-                    onChangeText={(text) => handleChange(key, text)}
-                    onFocus={() => setFocusedField(key)}
-                    onBlur={() => setFocusedField(null)}
-                    keyboardType={keyboard}
-                    autoCapitalize="none"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                  {key === "color_theme" && hasValue && /^#[0-9a-fA-F]{6}$/.test(value) && (
-                    <View
-                      className="absolute right-4 top-1/2 -mt-3 w-6 h-6 rounded-full border border-gray-300"
-                      style={{ backgroundColor: value }}
-                    />
-                  )}
-                </View>
-                {hasError && (
-                  <Text className="text-red-500 text-sm mt-1 ml-1 font-medium">
-                    {errors[key]}
-                  </Text>
+        <Text style={styles.formTitle}>
+          {isEdit ? "Edit" : "Create"} Draw
+        </Text>
+
+        {/* Name */}
+        <View style={{ marginBottom: 20 }}>
+          <Text style={styles.formLabel}>Draw Name</Text>
+          <TextInput
+            style={styles.formInput}
+            placeholder="Enter draw name"
+            value={form.name}
+            onChangeText={(text) => setForm((prev: typeof form) => ({ ...prev, name: text }))}
+            placeholderTextColor="#9ca3af"
+          />
+          {errors.name && (
+            <Text style={{ color: "#dc2626", fontSize: 13, marginTop: 4 }}>{errors.name}</Text>
+          )}
+        </View>
+
+        {/* Color Theme */}
+        <View style={{ marginBottom: 20 }}>
+          <Text style={styles.formLabel}>Color Theme</Text>
+          <View style={styles.colorPaletteRow}>
+            {colorPalette.map((color) => (
+              <TouchableOpacity
+                key={color}
+                onPress={() => setForm((prev: typeof form) => ({ ...prev, color_theme: color }))}
+                style={[
+                  styles.colorCircle,
+                  {
+                    backgroundColor: color,
+                    borderWidth: form.color_theme === color ? 3 : 1,
+                    borderColor: form.color_theme === color ? "#6366F1" : "#e5e7eb",
+                  },
+                ]}
+                activeOpacity={0.7}
+              >
+                {form.color_theme === color && (
+                  <AntDesign name="check" size={20} color={getContrastYIQ(color)} />
                 )}
-              </View>
-            );
-          })}
+              </TouchableOpacity>
+            ))}
+          </View>
+          {errors.color_theme && (
+            <Text style={{ color: "#dc2626", fontSize: 13, marginTop: 4 }}>{errors.color_theme}</Text>
+          )}
+        </View>
 
+        {/* Prices */}
+        <View style={styles.priceRow}>
+          <View style={styles.priceCol}>
+            <Text style={styles.formLabel}>Non-Single Digit Price</Text>
+            <TextInput
+              style={styles.formInput}
+              placeholder="₹"
+              keyboardType="numeric"
+              value={form.non_single_digit_price.toString()}
+              onChangeText={(text) =>
+                setForm((prev: typeof form) => ({
+                  ...prev,
+                  non_single_digit_price: text.replace(/[^0-9.]/g, ""),
+                }))
+              }
+              placeholderTextColor="#9ca3af"
+            />
+            {errors.non_single_digit_price && (
+              <Text style={{ color: "#dc2626", fontSize: 13, marginTop: 4 }}>
+                {errors.non_single_digit_price}
+              </Text>
+            )}
+          </View>
+          <View style={styles.priceCol}>
+            <Text style={styles.formLabel}>Single Digit Price</Text>
+            <TextInput
+              style={styles.formInput}
+              placeholder="₹"
+              keyboardType="numeric"
+              value={form.single_digit_number_price.toString()}
+              onChangeText={(text) =>
+                setForm((prev: typeof form) => ({
+                  ...prev,
+                  single_digit_number_price: text.replace(/[^0-9.]/g, ""),
+                }))
+              }
+              placeholderTextColor="#9ca3af"
+            />
+            {errors.single_digit_number_price && (
+              <Text style={{ color: "#dc2626", fontSize: 13, marginTop: 4 }}>
+                {errors.single_digit_number_price}
+              </Text>
+            )}
+          </View>
+        </View>
+
+        {/* Dates & Times */}
+        <View style={{ marginBottom: 20 }}>
+          <Text style={styles.formLabel}>Valid From</Text>
           <TouchableOpacity
-            className={`bg-indigo-600 py-4 rounded-xl shadow-lg mt-2 mb-8 ${
-              submitting ? "opacity-60" : ""
-            }`}
-            onPress={handleSubmit}
-            disabled={submitting}
-            activeOpacity={0.9}
+            style={styles.dateBtn}
+            activeOpacity={0.8}
+            onPress={() => setShowDatePicker("valid_from")}
           >
-            <Text className="text-white text-center font-bold text-lg">
-              {submitting
-                ? isEdit
-                  ? "Updating..."
-                  : "Creating..."
-                : isEdit
-                ? "Update Draw"
-                : "Create Draw"}
+            <Text style={styles.dateBtnText}>
+              {`${form.valid_from.getDate().toString().padStart(2, "0")}/${(form.valid_from.getMonth() + 1)
+                .toString()
+                .padStart(2, "0")}/${form.valid_from.getFullYear()}`}
+            </Text>
+            <AntDesign name="calendar" size={20} color="#6366f1" style={{ marginLeft: 8 }} />
+          </TouchableOpacity>
+          {errors.valid_from && (
+            <Text style={{ color: "#dc2626", fontSize: 13, marginTop: 4 }}>{errors.valid_from}</Text>
+          )}
+
+          <Text style={styles.formLabel}>Valid Till</Text>
+          <TouchableOpacity
+            style={styles.dateBtn}
+            activeOpacity={0.8}
+            onPress={() => setShowDatePicker("valid_till")}
+          >
+            <Text style={styles.dateBtnText}>
+              {`${form.valid_till.getDate().toString().padStart(2, "0")}/${(form.valid_till.getMonth() + 1)
+                .toString()
+                .padStart(2, "0")}/${form.valid_till.getFullYear()}`}
+            </Text>
+            <AntDesign name="calendar" size={20} color="#6366f1" style={{ marginLeft: 8 }} />
+          </TouchableOpacity>
+          {errors.valid_till && (
+            <Text style={{ color: "#dc2626", fontSize: 13, marginTop: 4 }}>{errors.valid_till}</Text>
+          )}
+
+          <View style={styles.timeRow}>
+            <Text style={styles.timeLabel}>Cut Off Time</Text>
+            <TouchableOpacity
+              style={styles.timeBtn}
+              activeOpacity={0.85}
+              onPress={() => setShowDatePicker("cut_off_time")}
+            >
+              <Feather name="clock" size={18} color="#6366f1" style={{ marginRight: 6 }} />
+              <Text style={styles.timeBtnText}>
+                {form.cut_off_time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {errors.cut_off_time && (
+            <Text style={{ color: "#dc2626", fontSize: 13, marginTop: 4 }}>{errors.cut_off_time}</Text>
+          )}
+
+          <View style={[styles.timeRow, { marginBottom: 12 }]}>
+            <Text style={styles.timeLabel}>Draw Time</Text>
+            <TouchableOpacity
+              style={styles.timeBtn}
+              activeOpacity={0.85}
+              onPress={() => setShowDatePicker("draw_time")}
+            >
+              <Feather name="clock" size={18} color="#6366f1" style={{ marginRight: 6 }} />
+              <Text style={styles.timeBtnText}>
+                {form.draw_time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {errors.draw_time && (
+            <Text style={{ color: "#dc2626", fontSize: 13, marginTop: 4 }}>{errors.draw_time}</Text>
+          )}
+        </View>
+
+        <View style={{ marginBottom: 32 }}>
+          <TouchableOpacity
+            onPress={handleSubmit}
+            activeOpacity={0.85}
+            style={[
+              styles.submitBtn,
+              submitting ? { opacity: 0.7 } : undefined,
+            ]}
+            disabled={submitting}
+          >
+            <Text style={styles.submitBtnText}>
+              {submitting ? (isEdit ? "Updating..." : "Creating...") : (isEdit ? "Update" : "Create") + " Draw"}
             </Text>
           </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+        </View>
+
+        {showDatePicker && (
+          <DateTimePicker
+            mode={showDatePicker.includes("time") ? "time" : "date"}
+            value={form[showDatePicker as keyof typeof form] as Date}
+            display={Platform.OS === "android" ? "default" : "spinner"}
+            onChange={(event, date) => {
+              if (date) setForm((prev: typeof form) => ({ ...prev, [showDatePicker]: date }));
+              setShowDatePicker(null);
+            }}
+          />
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
-}
+};
 
 // --- Draw Card ---
 function DrawCard({
@@ -275,13 +471,11 @@ export default function DrawsScreen() {
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState<(Draw & { id: number }) | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
   const {
     data: draws = [],
     isLoading,
     isError,
-    error,
     isFetching,
     refetch,
   } = useQuery<(Draw & { id: number })[]>({
@@ -290,44 +484,11 @@ export default function DrawsScreen() {
     retry: false,
   });
 
-  const { createDraw, updateDraw, deleteDraw } = useDraw();
+  const { deleteDraw } = useDraw();
 
   const filtered = draws.filter((d) =>
     d.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  const handleCreate = (data: any) => {
-    setSubmitting(true);
-    createDraw(data, {
-      onSuccess: () => {
-        refetch();
-        setShowForm(false);
-        setSubmitting(false);
-      },
-      onError: (err: any) => {
-        setSubmitting(false);
-        const msg = typeof err === "string" ? err : err?.message || "Failed to create draw.";
-        Alert.alert("Error", typeof msg === "string" ? msg : JSON.stringify(msg));
-      },
-    });
-  };
-
-  const handleEdit = (data: any) => {
-    setSubmitting(true);
-    updateDraw(data, {
-      onSuccess: () => {
-        refetch();
-        setShowForm(false);
-        setEditData(null);
-        setSubmitting(false);
-      },
-      onError: (err: any) => {
-        setSubmitting(false);
-        const msg = typeof err === "string" ? err : err?.message || "Failed to update draw.";
-        Alert.alert("Error", typeof msg === "string" ? msg : JSON.stringify(msg));
-      },
-    });
-  };
 
   const handleDelete = (draw: Draw & { id: number }) => {
     Alert.alert("Delete Draw", `Delete "${draw.name}"?`, [
@@ -335,7 +496,7 @@ export default function DrawsScreen() {
       {
         text: "Delete",
         style: "destructive",
-        onPress: () => deleteDraw({ id: draw.id }, { onSuccess: () => refetch() }),
+        onPress: () => deleteDraw.mutate({ id: draw.id }, { onSuccess: () => refetch() }),
       },
     ]);
   };
@@ -361,13 +522,11 @@ export default function DrawsScreen() {
   if (showForm) {
     return (
       <DrawForm
-        onSubmit={editData ? handleEdit : handleCreate}
-        defaultValues={editData || {}}
-        onCancel={() => {
+        initialData={editData}
+        onClose={() => {
           setShowForm(false);
           setEditData(null);
         }}
-        submitting={submitting}
       />
     );
   }
@@ -442,3 +601,129 @@ export default function DrawsScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  formContainer: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+  },
+  formScroll: {
+    flex: 1,
+  },
+  formContent: {
+    padding: 24,
+    paddingTop: 56,
+    paddingBottom: 40,
+  },
+  backBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  backBtnText: {
+    color: "#6366F1",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  formTitle: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: "#1e293b",
+    marginBottom: 28,
+  },
+  formLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#475569",
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  formInput: {
+    backgroundColor: "#fff",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: "#1e293b",
+  },
+  colorPaletteRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  colorCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  priceRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 20,
+  },
+  priceCol: {
+    flex: 1,
+  },
+  dateBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 8,
+  },
+  dateBtnText: {
+    fontSize: 15,
+    color: "#1e293b",
+    fontWeight: "500",
+  },
+  timeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 14,
+  },
+  timeLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#475569",
+  },
+  timeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#eef2ff",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  timeBtnText: {
+    fontSize: 15,
+    color: "#4338ca",
+    fontWeight: "600",
+  },
+  submitBtn: {
+    backgroundColor: "#6366F1",
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: "center",
+    shadowColor: "#6366F1",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  submitBtnText: {
+    color: "#fff",
+    fontSize: 17,
+    fontWeight: "bold",
+  },
+});

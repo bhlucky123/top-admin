@@ -30,13 +30,13 @@ const useDraw = () => {
   });
 
   return {
-    createDraw: createMutation.mutate,
+    createDraw: createMutation,
     isCreating: createMutation.isPending,
 
-    updateDraw: updateMutation.mutate,
+    updateDraw: updateMutation,
     isUpdating: updateMutation.isPending,
 
-    deleteDraw: deleteMutation.mutate,
+    deleteDraw: deleteMutation,
     isDeleting: deleteMutation.isPending,
   };
 };

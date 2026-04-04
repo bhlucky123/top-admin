@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(ls -la /c/Users/ajmal/Desktop/Freelance/top-admin/app/vendor*)"
     ]
   }
 }

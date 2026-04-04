@@ -130,12 +130,12 @@ function VendorForm({
 function VendorCard({
   item,
   onEdit,
-  onDelete,
+  onToggleActive,
   onPress,
 }: {
   item: Vendor;
   onEdit: () => void;
-  onDelete: () => void;
+  onToggleActive: () => void;
   onPress: () => void;
 }) {
   return (
@@ -144,16 +144,23 @@ function VendorCard({
       className="bg-white mx-4 mb-3 rounded-2xl border border-gray-100 overflow-hidden shadow-sm"
       activeOpacity={0.7}
     >
-      <View className="h-1 bg-indigo-500" />
+      <View className={`h-1 ${item.is_active ? "bg-indigo-500" : "bg-gray-300"}`} />
       <View className="p-5">
         <View className="flex-row items-center justify-between">
           <View className="flex-row items-center flex-1">
-            <View className="w-10 h-10 rounded-xl bg-indigo-50 items-center justify-center mr-3">
-              <Building2 size={18} color="#4F46E5" />
+            <View className={`w-10 h-10 rounded-xl items-center justify-center mr-3 ${item.is_active ? "bg-indigo-50" : "bg-gray-100"}`}>
+              <Building2 size={18} color={item.is_active ? "#4F46E5" : "#9CA3AF"} />
             </View>
-            <Text className="text-lg font-bold text-gray-800">
-              {item.name}
-            </Text>
+            <View>
+              <Text className={`text-lg font-bold ${item.is_active ? "text-gray-800" : "text-gray-400"}`}>
+                {item.name}
+              </Text>
+              <View className={`mt-1 self-start px-2 py-0.5 rounded-full ${item.is_active ? "bg-green-50" : "bg-red-50"}`}>
+                <Text className={`text-xs font-semibold ${item.is_active ? "text-green-600" : "text-red-500"}`}>
+                  {item.is_active ? "Active" : "Inactive"}
+                </Text>
+              </View>
+            </View>
           </View>
 
           <View className="flex-row items-center gap-2">
@@ -165,11 +172,13 @@ function VendorCard({
               <Text className="text-gray-700 text-sm font-medium">Edit</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={onDelete}
-              className="px-3 py-1.5 bg-red-50 rounded-lg"
+              onPress={onToggleActive}
+              className={`px-3 py-1.5 rounded-lg ${item.is_active ? "bg-red-50" : "bg-green-50"}`}
               activeOpacity={0.7}
             >
-              <Text className="text-red-600 text-sm font-medium">Delete</Text>
+              <Text className={`text-sm font-medium ${item.is_active ? "text-red-600" : "text-green-600"}`}>
+                {item.is_active ? "Deactivate" : "Activate"}
+              </Text>
             </TouchableOpacity>
             <ChevronRight size={18} color="#9CA3AF" />
           </View>
@@ -201,7 +210,7 @@ export default function VendorsScreen() {
     retry: false,
   });
 
-  const { createVendor, editVendor, deleteVendor } = useVendor();
+  const { createVendor, editVendor, toggleActive } = useVendor();
 
   const filtered = vendors.filter((v) =>
     v.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -254,19 +263,31 @@ export default function VendorsScreen() {
     );
   };
 
-  const handleDelete = (vendor: Vendor) => {
+  const handleToggleActive = (vendor: Vendor) => {
+    const action = vendor.is_active ? "Deactivate" : "Activate";
     Alert.alert(
-      "Delete Vendor",
-      `Are you sure you want to delete "${vendor.name}"? This will also remove all associated data.`,
+      `${action} Vendor`,
+      `Are you sure you want to ${action.toLowerCase()} "${vendor.name}"?`,
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Delete",
-          style: "destructive",
+          text: action,
+          style: vendor.is_active ? "destructive" : "default",
           onPress: () => {
-            deleteVendor(
-              { id: vendor.id },
-              { onSuccess: () => refetch() }
+            toggleActive(
+              { id: vendor.id, is_active: !vendor.is_active },
+              {
+                onSuccess: (updated) => {
+                  queryClient.setQueryData<Vendor[]>(["vendors"], (old) =>
+                    old?.map((v) => (v.id === updated.id ? updated : v)) || []
+                  );
+                },
+                onError: (err: any) => {
+                  const msg =
+                    typeof err?.message === "string" ? err.message : `Failed to ${action.toLowerCase()} vendor.`;
+                  Alert.alert("Error", msg);
+                },
+              }
             );
           },
         },
@@ -361,11 +382,11 @@ export default function VendorsScreen() {
                 setEditData(item);
                 setShowForm(true);
               }}
-              onDelete={() => handleDelete(item)}
+              onToggleActive={() => handleToggleActive(item)}
               onPress={() =>
                 router.push({
                   pathname: "/vendor/[id]",
-                  params: { id: String(item.id), name: item.name },
+                  params: { id: String(item.id), name: item.name, is_active: String(item.is_active) },
                 })
               }
             />

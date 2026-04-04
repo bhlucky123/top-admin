@@ -4,11 +4,12 @@ import { useMutation } from "@tanstack/react-query";
 export type Vendor = {
   id: number;
   name: string;
+  is_active: boolean;
 };
 
-type CreateVendorParams = { name: string };
-type EditVendorParams = { id: number; name: string };
-type DeleteVendorParams = { id: number };
+type CreateVendorParams = { name: string; is_active?: boolean };
+type EditVendorParams = { id: number; name?: string; is_active?: boolean };
+type ToggleActiveParams = { id: number; is_active: boolean };
 
 const useVendor = () => {
   const createMutation = useMutation<Vendor, any, CreateVendorParams>({
@@ -21,9 +22,9 @@ const useVendor = () => {
       api.patch(`/administrator/vendors/${id}/`, payload).then((res) => res.data),
   });
 
-  const deleteMutation = useMutation<void, any, DeleteVendorParams>({
-    mutationFn: ({ id }) =>
-      api.delete(`/administrator/vendors/${id}/`).then((res) => res.data),
+  const toggleActiveMutation = useMutation<Vendor, any, ToggleActiveParams>({
+    mutationFn: ({ id, is_active }) =>
+      api.patch(`/administrator/vendors/${id}/`, { is_active }).then((res) => res.data),
   });
 
   return {
@@ -35,9 +36,9 @@ const useVendor = () => {
     editVendorAsync: editMutation.mutateAsync,
     isEditing: editMutation.isPending,
 
-    deleteVendor: deleteMutation.mutate,
-    deleteVendorAsync: deleteMutation.mutateAsync,
-    isDeleting: deleteMutation.isPending,
+    toggleActive: toggleActiveMutation.mutate,
+    toggleActiveAsync: toggleActiveMutation.mutateAsync,
+    isToggling: toggleActiveMutation.isPending,
   };
 };
 

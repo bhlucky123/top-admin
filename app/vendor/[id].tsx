@@ -1,4 +1,5 @@
 import useVendorDraw, { VendorDraw } from "@/hooks/use-vendor-draw";
+import useVendorFeature, { VendorFeature } from "@/hooks/use-vendor-feature";
 import { Admin } from "@/hooks/use-staff";
 import api from "@/utils/axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -8,6 +9,7 @@ import {
   Check,
   ChevronRight,
   Settings,
+  Shield,
   Ticket,
   Trash2,
   Users,
@@ -28,11 +30,12 @@ import {
 } from "react-native";
 
 export default function VendorDetailScreen() {
-  const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
+  const { id, name, is_active: isActiveParam } = useLocalSearchParams<{ id: string; name: string; is_active: string }>();
   const vendorId = Number(id);
   const router = useRouter();
   const queryClient = useQueryClient();
   const [showDrawPicker, setShowDrawPicker] = useState(false);
+  const [showFeaturePicker, setShowFeaturePicker] = useState(false);
 
   // Fetch vendor's assigned draws
   const {
@@ -78,6 +81,27 @@ export default function VendorDetailScreen() {
     retry: false,
   });
 
+  // Fetch vendor's assigned features
+  const {
+    data: vendorFeatures = [],
+    isLoading: featuresLoading,
+    refetch: refetchFeatures,
+  } = useQuery<VendorFeature[]>({
+    queryKey: ["vendor-features", vendorId],
+    queryFn: () =>
+      api
+        .get(`/administrator/vendors/${vendorId}/features/`)
+        .then((r) => r.data),
+  });
+
+  // Fetch all available features
+  const { data: allFeatures = [] } = useQuery<VendorFeature[]>({
+    queryKey: ["all-features"],
+    queryFn: () =>
+      api.get("/administrator/vendor-features/").then((r) => r.data),
+  });
+
+  const { assignFeatures, isAssigningFeatures } = useVendorFeature();
   const { assignDraw, unassignDraw, isAssigning } = useVendorDraw();
 
   // Available draws (not yet assigned)
@@ -116,9 +140,34 @@ export default function VendorDetailScreen() {
     );
   };
 
+  // Toggle a feature on/off for this vendor
+  const assignedFeatureIds = vendorFeatures.map((f) => f.id);
+  const handleToggleFeature = (featureId: number) => {
+    const newIds = assignedFeatureIds.includes(featureId)
+      ? assignedFeatureIds.filter((id) => id !== featureId)
+      : [...assignedFeatureIds, featureId];
+    assignFeatures(
+      { vendorId, feature_ids: newIds },
+      {
+        onSuccess: () => {
+          refetchFeatures();
+          setShowFeaturePicker(false);
+        },
+        onError: (err: any) => {
+          const msg =
+            typeof err?.message === "string"
+              ? err.message
+              : "Failed to update features.";
+          Alert.alert("Error", msg);
+        },
+      }
+    );
+  };
+
   const onRefresh = () => {
     refetchVD();
     refetchAdmins();
+    refetchFeatures();
   };
 
   return (
@@ -149,9 +198,16 @@ export default function VendorDetailScreen() {
               <Text className="text-xl font-bold text-gray-900">
                 {name || `Vendor #${id}`}
               </Text>
-              <Text className="text-gray-400 text-sm mt-0.5">
-                Vendor ID: {id}
-              </Text>
+              <View className="flex-row items-center mt-1 gap-2">
+                <Text className="text-gray-400 text-sm">
+                  Vendor ID: {id}
+                </Text>
+                <View className={`px-2 py-0.5 rounded-full ${isActiveParam === "true" ? "bg-green-50" : "bg-red-50"}`}>
+                  <Text className={`text-xs font-semibold ${isActiveParam === "true" ? "text-green-600" : "text-red-500"}`}>
+                    {isActiveParam === "true" ? "Active" : "Inactive"}
+                  </Text>
+                </View>
+              </View>
             </View>
           </View>
         </View>
@@ -319,6 +375,73 @@ export default function VendorDetailScreen() {
           )}
         </View>
 
+        {/* Features Section */}
+        <View className="mx-5 mt-6">
+          <View className="flex-row items-center justify-between mb-3">
+            <Text className="text-lg font-bold text-gray-800">Features</Text>
+            <View className="flex-row items-center gap-2">
+              <View className="bg-purple-50 px-2.5 py-1 rounded-md">
+                <Text className="text-purple-600 text-xs font-bold">
+                  {vendorFeatures.length}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowFeaturePicker(true)}>
+                <Text className="text-indigo-600 text-sm font-semibold">
+                  Manage
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {featuresLoading ? (
+            <View className="bg-white rounded-2xl p-6 items-center">
+              <ActivityIndicator size="small" color="#7C3AED" />
+            </View>
+          ) : vendorFeatures.length === 0 ? (
+            <View className="bg-white rounded-2xl p-6 items-center border border-gray-100">
+              <Shield size={32} color="#D1D5DB" />
+              <Text className="text-gray-400 mt-2 text-sm">
+                No features assigned
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowFeaturePicker(true)}
+                className="mt-3 bg-indigo-600 px-5 py-2 rounded-xl"
+              >
+                <Text className="text-white font-semibold text-sm">
+                  Assign Features
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              {vendorFeatures.map((feature, index) => (
+                <View
+                  key={feature.id}
+                  className={`flex-row items-center px-5 py-4 ${
+                    index < vendorFeatures.length - 1
+                      ? "border-b border-gray-100"
+                      : ""
+                  }`}
+                >
+                  <View className="w-9 h-9 rounded-lg bg-purple-50 items-center justify-center mr-3">
+                    <Shield size={16} color="#7C3AED" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-gray-800 font-semibold text-sm">
+                      {feature.name}
+                    </Text>
+                    {feature.description ? (
+                      <Text className="text-gray-400 text-xs mt-0.5">
+                        {feature.description}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
         {/* Prize Config Summary */}
         {prizeConfig && (
           <View className="mx-5 mt-6">
@@ -375,6 +498,88 @@ export default function VendorDetailScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Feature Assignment Modal */}
+      <Modal
+        visible={showFeaturePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowFeaturePicker(false)}
+      >
+        <View className="flex-1 bg-black/50 justify-end">
+          <View className="bg-white rounded-t-3xl max-h-[70%]">
+            <View className="flex-row items-center justify-between px-6 pt-5 pb-3 border-b border-gray-100">
+              <Text className="text-lg font-bold text-gray-900">
+                Manage Features
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowFeaturePicker(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center"
+              >
+                <X size={18} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            {allFeatures.length === 0 ? (
+              <View className="p-8 items-center">
+                <Shield size={40} color="#D1D5DB" />
+                <Text className="text-gray-400 mt-3 text-sm text-center">
+                  No features available
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={allFeatures}
+                keyExtractor={(item) => item.id.toString()}
+                contentContainerStyle={{ paddingBottom: 40 }}
+                renderItem={({ item }) => {
+                  const isAssigned = assignedFeatureIds.includes(item.id);
+                  return (
+                    <TouchableOpacity
+                      onPress={() => handleToggleFeature(item.id)}
+                      disabled={isAssigningFeatures}
+                      className="flex-row items-center justify-between px-6 py-4 border-b border-gray-50"
+                      activeOpacity={0.6}
+                    >
+                      <View className="flex-row items-center flex-1">
+                        <View
+                          className={`w-9 h-9 rounded-lg items-center justify-center mr-3 ${
+                            isAssigned ? "bg-purple-100" : "bg-gray-100"
+                          }`}
+                        >
+                          <Shield
+                            size={16}
+                            color={isAssigned ? "#7C3AED" : "#9CA3AF"}
+                          />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-gray-800 font-semibold text-sm">
+                            {item.name}
+                          </Text>
+                          {item.description ? (
+                            <Text className="text-gray-400 text-xs mt-0.5">
+                              {item.description}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </View>
+                      <View
+                        className={`w-8 h-8 rounded-lg items-center justify-center ${
+                          isAssigned ? "bg-purple-100" : "bg-gray-100"
+                        }`}
+                      >
+                        {isAssigned ? (
+                          <Check size={16} color="#7C3AED" />
+                        ) : null}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* Draw Assignment Modal */}
       <Modal
