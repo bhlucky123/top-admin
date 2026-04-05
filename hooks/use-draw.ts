@@ -14,7 +14,6 @@ export type Draw = {
   non_single_digit_price: number;
   single_digit_number_price: number;
   type?: DrawType;
-  is_test_draw?: boolean;
 };
 
 const useDraw = () => {
@@ -33,6 +32,32 @@ const useDraw = () => {
       api.delete(`/draw/${id}/`).then((res) => res.data),
   });
 
+  const createDrawResult = useMutation({
+    mutationFn: async ({
+      draw_session,
+      ...rest
+    }: {
+      draw_session: number;
+      [key: string]: any;
+    }) => {
+      const res = await api.post(`/draw-result/result/${draw_session}/`, rest);
+      return res.data;
+    },
+  });
+
+  const updateDrawResult = useMutation({
+    mutationFn: async ({
+      id,
+      ...rest
+    }: {
+      id: number;
+      [key: string]: any;
+    }) => {
+      const res = await api.patch(`/draw-result/result/${id}/`, rest);
+      return res.data;
+    },
+  });
+
   return {
     createDraw: createMutation,
     isCreating: createMutation.isPending,
@@ -42,6 +67,11 @@ const useDraw = () => {
 
     deleteDraw: deleteMutation,
     isDeleting: deleteMutation.isPending,
+
+    createDrawResult,
+    updateDrawResult,
+    createDrawResultIsPending: createDrawResult.isPending,
+    updateDrawResultIsPending: updateDrawResult.isPending,
   };
 };
 

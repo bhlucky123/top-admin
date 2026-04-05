@@ -30,21 +30,66 @@ interface PrizeConfig {
   super_fourth_prize: number;
   super_fifth_prize: number;
   super_complementary_prize: number;
+  tn_first_prize: number;
+  tn_second_prize: number;
+  tn_third_prize: number;
+  kl_first_prize: number;
+  kl_second_prize: number;
+  kl_third_prize: number;
+  kl_fourth_prize: number;
+  kl_fifth_prize: number;
+  kl_sixth_prize: number;
 }
 
-const FIELDS: { key: keyof PrizeConfig; label: string }[] = [
-  { key: "default_dealer_commission", label: "Default Dealer Commission" },
-  { key: "single_digit_prize", label: "Single Digit Prize" },
-  { key: "double_digit_prize", label: "Double Digit Prize" },
-  { key: "box_direct", label: "Box Direct" },
-  { key: "box_indirect", label: "Box Indirect" },
-  { key: "super_first_prize", label: "Super First Prize" },
-  { key: "super_second_prize", label: "Super Second Prize" },
-  { key: "super_third_prize", label: "Super Third Prize" },
-  { key: "super_fourth_prize", label: "Super Fourth Prize" },
-  { key: "super_fifth_prize", label: "Super Fifth Prize" },
-  { key: "super_complementary_prize", label: "Super Complementary Prize" },
+type FieldGroup = {
+  title: string;
+  fields: { key: keyof PrizeConfig; label: string }[];
+};
+
+const FIELD_GROUPS: FieldGroup[] = [
+  {
+    title: "General",
+    fields: [
+      { key: "default_dealer_commission", label: "Default Dealer Commission" },
+      { key: "single_digit_prize", label: "Single Digit Prize" },
+      { key: "double_digit_prize", label: "Double Digit Prize" },
+      { key: "box_direct", label: "Box Direct" },
+      { key: "box_indirect", label: "Box Indirect" },
+    ],
+  },
+  {
+    title: "Super",
+    fields: [
+      { key: "super_first_prize", label: "Super First Prize" },
+      { key: "super_second_prize", label: "Super Second Prize" },
+      { key: "super_third_prize", label: "Super Third Prize" },
+      { key: "super_fourth_prize", label: "Super Fourth Prize" },
+      { key: "super_fifth_prize", label: "Super Fifth Prize" },
+      { key: "super_complementary_prize", label: "Super Complementary Prize" },
+    ],
+  },
+  {
+    title: "Tamil Nadu",
+    fields: [
+      { key: "tn_first_prize", label: "TN First Prize" },
+      { key: "tn_second_prize", label: "TN Second Prize" },
+      { key: "tn_third_prize", label: "TN Third Prize" },
+    ],
+  },
+  {
+    title: "Kerala",
+    fields: [
+      { key: "kl_first_prize", label: "KL First Prize" },
+      { key: "kl_second_prize", label: "KL Second Prize" },
+      { key: "kl_third_prize", label: "KL Third Prize" },
+      { key: "kl_fourth_prize", label: "KL Fourth Prize" },
+      { key: "kl_fifth_prize", label: "KL Fifth Prize" },
+      { key: "kl_sixth_prize", label: "KL Sixth Prize" },
+    ],
+  },
 ];
+
+const FIELDS = FIELD_GROUPS.flatMap((g) => g.fields);
 
 export default function VendorConfigScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -186,43 +231,48 @@ export default function VendorConfigScreen() {
           </View>
 
           {/* Prize Fields */}
-          <View className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-            <Text className="text-lg font-bold text-gray-800 mb-4">
-              Prize Configuration
-            </Text>
+          {FIELD_GROUPS.map((group) => (
+            <View
+              key={group.title}
+              className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm mb-5"
+            >
+              <Text className="text-lg font-bold text-gray-800 mb-4">
+                {group.title}
+              </Text>
 
-            {FIELDS.map(({ key, label }) => {
-              const isFocused = focusedField === key;
-              const value = form[key] || "";
-              const hasValue = !!value && value !== "0";
+              {group.fields.map(({ key, label }) => {
+                const isFocused = focusedField === key;
+                const value = form[key] || "";
+                const hasValue = !!value && value !== "0";
 
-              return (
-                <View key={key} className="mb-4">
-                  <Text className="text-gray-600 font-medium text-sm mb-1.5 ml-0.5">
-                    {label}
-                  </Text>
-                  <TextInput
-                    className={`border-2 rounded-xl px-4 py-3 bg-white text-gray-800 font-medium ${
-                      isFocused
-                        ? "border-indigo-400 bg-indigo-50"
-                        : hasValue
-                        ? "border-green-300 bg-green-50"
-                        : "border-gray-200"
-                    }`}
-                    value={value}
-                    onChangeText={(t) =>
-                      setForm((prev) => ({ ...prev, [key]: t }))
-                    }
-                    onFocus={() => setFocusedField(key)}
-                    onBlur={() => setFocusedField(null)}
-                    keyboardType="numeric"
-                    placeholderTextColor="#9CA3AF"
-                    placeholder="0"
-                  />
-                </View>
-              );
-            })}
-          </View>
+                return (
+                  <View key={key} className="mb-4">
+                    <Text className="text-gray-600 font-medium text-sm mb-1.5 ml-0.5">
+                      {label}
+                    </Text>
+                    <TextInput
+                      className={`border-2 rounded-xl px-4 py-3 bg-white text-gray-800 font-medium ${
+                        isFocused
+                          ? "border-indigo-400 bg-indigo-50"
+                          : hasValue
+                          ? "border-green-300 bg-green-50"
+                          : "border-gray-200"
+                      }`}
+                      value={value}
+                      onChangeText={(t) =>
+                        setForm((prev) => ({ ...prev, [key]: t }))
+                      }
+                      onFocus={() => setFocusedField(key)}
+                      onBlur={() => setFocusedField(null)}
+                      keyboardType="numeric"
+                      placeholderTextColor="#9CA3AF"
+                      placeholder="0"
+                    />
+                  </View>
+                );
+              })}
+            </View>
+          ))}
 
           {/* Save Button */}
           <TouchableOpacity

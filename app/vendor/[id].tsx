@@ -470,6 +470,8 @@ export default function VendorDetailScreen() {
                   { label: "Single Digit", value: prizeConfig.single_digit_prize },
                   { label: "Double Digit", value: prizeConfig.double_digit_prize },
                   { label: "Box Direct", value: prizeConfig.box_direct },
+                  { label: "KL 1st Prize", value: prizeConfig.kl_first_prize },
+                  { label: "KL 2nd Prize", value: prizeConfig.kl_second_prize },
                 ].map((item) => (
                   <View
                     key={item.label}

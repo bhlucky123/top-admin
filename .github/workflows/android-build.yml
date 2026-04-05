@@ -43,13 +43,13 @@ jobs:
       - name: Rename APK
         run: |
           APK_PATH=$(find android/app/build/outputs/apk/release -name "*.apk" | head -1)
-          cp "$APK_PATH" "calculator-app.apk"
+          cp "$APK_PATH" "top-admin.apk"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: calculator-apk
-          path: "calculator-app.apk"
+          name: top-admin-apk
+          path: "top-admin.apk"
           retention-days: 5
 
   release:
@@ -113,7 +113,8 @@ jobs:
                 if [ "$STATUS" = "ok" ]; then
                   DL_PAGE=$(echo "$RESPONSE" | jq -r '.data.downloadPage')
                   echo "  OK -> ${DL_PAGE}"
-                  GOFILE_ROWS="${GOFILE_ROWS}<tr><td style='padding:12px 16px;border-bottom:1px solid #e2e8f0;'><span style='font-weight:700;font-size:15px;color:#1e293b;'>${app_label}</span></td><td style='padding:12px 8px;border-bottom:1px solid #e2e8f0;text-align:right;'><a href='${DL_PAGE}' style='display:inline-block;background:#059669;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;'>Download</a></td><td style='padding:12px 8px;border-bottom:1px solid #e2e8f0;text-align:right;'><a href='${DL_PAGE}' style='display:inline-block;background:#f1f5f9;color:#334155;padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:600;font-size:12px;border:1px solid #e2e8f0;'>Copy Link</a></td></tr>"
+                  ENCODED_DL=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${DL_PAGE}'))")
+                  GOFILE_ROWS="${GOFILE_ROWS}<tr><td style='padding:12px 16px;border-bottom:1px solid #e2e8f0;'><span style='font-weight:700;font-size:15px;color:#1e293b;'>${app_label}</span></td><td style='padding:12px 8px;border-bottom:1px solid #e2e8f0;text-align:right;'><a href='${DL_PAGE}' style='display:inline-block;background:#059669;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;'>Download</a></td><td style='padding:12px 8px;border-bottom:1px solid #e2e8f0;text-align:right;'><a href='mailto:?subject=Top%20Admin%20APK&body=${ENCODED_DL}' style='display:inline-block;background:#f1f5f9;color:#334155;padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:600;font-size:12px;border:1px solid #e2e8f0;'>Share Link</a></td></tr>"
                   GOFILE_COPY="${GOFILE_COPY}${app_label} : ${DL_PAGE}\n"
                   UPLOADED=true
                   break
@@ -165,6 +166,8 @@ jobs:
           files: apks/*.apk
 
       - name: Send email notification
+        if: ${{ secrets.MAIL_USERNAME != '' }}
+        continue-on-error: true
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -210,8 +213,9 @@ jobs:
                   </table>
                 </div>
                 <div style="padding:0 24px 20px;">
-                  <h3 style="margin:0 0 8px;font-size:14px;color:#64748b;font-weight:600;">All Links</h3>
-                  <div style="background:#1e293b;border-radius:10px;padding:16px 18px;">
+                  <h3 style="margin:0 0 4px;font-size:14px;color:#64748b;font-weight:600;">Copy Link</h3>
+                  <p style="margin:0 0 10px;font-size:11px;color:#94a3b8;">Tap the link below to select &amp; copy</p>
+                  <div style="background:#1e293b;border-radius:10px;padding:16px 18px;user-select:all;-webkit-user-select:all;">
                     <pre style="margin:0;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:12px;color:#e2e8f0;white-space:pre-wrap;word-break:break-all;line-height:2;">${{ steps.gofile-upload.outputs.gofile_copy }}</pre>
                   </div>
                 </div>

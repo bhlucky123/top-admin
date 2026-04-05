@@ -41,7 +41,6 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
           cut_off_time: new Date(`1970-01-01T${initialData.cut_off_time}`),
           draw_time: new Date(`1970-01-01T${initialData.draw_time}`),
           type: initialData.type || "default",
-          is_test_draw: initialData.is_test_draw ?? false,
         }
       : {
           name: "",
@@ -53,7 +52,6 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
           non_single_digit_price: "",
           single_digit_number_price: "",
           type: "default" as DrawType,
-          is_test_draw: false,
         }
   );
   const [showDatePicker, setShowDatePicker] = useState<null | string>(null);
@@ -150,7 +148,6 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
       non_single_digit_price: Number(form.non_single_digit_price),
       single_digit_number_price: Number(form.single_digit_number_price),
       type: form.type,
-      is_test_draw: form.is_test_draw,
     };
 
     try {
@@ -273,47 +270,6 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
               </TouchableOpacity>
             ))}
           </View>
-        </View>
-
-        {/* Test Draw Toggle */}
-        <View style={{ marginBottom: 20 }}>
-          <TouchableOpacity
-            onPress={() => setForm((prev: typeof form) => ({ ...prev, is_test_draw: !prev.is_test_draw }))}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: 16,
-              borderRadius: 12,
-              borderWidth: 2,
-              borderColor: form.is_test_draw ? "#F59E42" : "#e2e8f0",
-              backgroundColor: form.is_test_draw ? "#FFF7ED" : "#f8fafc",
-            }}
-            activeOpacity={0.8}
-          >
-            <Text style={{ color: "#475569", fontWeight: "500", fontSize: 15 }}>
-              Test Draw
-            </Text>
-            <View
-              style={{
-                width: 48,
-                height: 24,
-                borderRadius: 12,
-                padding: 2,
-                backgroundColor: form.is_test_draw ? "#F59E42" : "#9CA3AF",
-              }}
-            >
-              <View
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 10,
-                  backgroundColor: "#fff",
-                  marginLeft: form.is_test_draw ? 24 : 0,
-                }}
-              />
-            </View>
-          </TouchableOpacity>
         </View>
 
         {/* Prices */}
@@ -515,11 +471,6 @@ function DrawCard({
               <Text className={`text-xs font-semibold ${item.type === "kerala" ? "text-orange-600" : "text-teal-600"}`}>
                 {item.type === "kerala" ? "Kerala" : "Tamil Nadu"}
               </Text>
-            </View>
-          )}
-          {item.is_test_draw && (
-            <View className="bg-amber-50 px-2 py-0.5 rounded-md">
-              <Text className="text-amber-600 text-xs font-semibold">Test</Text>
             </View>
           )}
         </View>

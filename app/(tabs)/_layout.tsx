@@ -2,6 +2,7 @@ import { useAuthStore } from "@/store/auth";
 import { Redirect, Tabs } from "expo-router";
 import {
   Building2,
+  FileText,
   LayoutDashboard,
   Settings,
   Ticket,
@@ -75,6 +76,13 @@ export default function TabLayout() {
           options={{
             title: "Draws",
             tabBarIcon: ({ color }) => <Ticket size={22} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="results"
+          options={{
+            title: "Results",
+            tabBarIcon: ({ color }) => <FileText size={22} color={color} />,
           }}
         />
         <Tabs.Screen
