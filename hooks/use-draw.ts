@@ -1,6 +1,8 @@
 import api from "@/utils/axios";
 import { useMutation } from "@tanstack/react-query";
 
+export type DrawType = "default" | "kerala" | "tamil_nadu";
+
 export type Draw = {
   id?: number;
   name: string;
@@ -11,6 +13,8 @@ export type Draw = {
   color_theme: string;
   non_single_digit_price: number;
   single_digit_number_price: number;
+  type?: DrawType;
+  is_test_draw?: boolean;
 };
 
 const useDraw = () => {

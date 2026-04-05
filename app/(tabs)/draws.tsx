@@ -1,4 +1,4 @@
-import useDraw, { Draw } from "@/hooks/use-draw";
+import useDraw, { Draw, DrawType } from "@/hooks/use-draw";
 import api from "@/utils/axios";
 import { AntDesign, Feather } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -40,6 +40,8 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
           valid_till: new Date(initialData.valid_till),
           cut_off_time: new Date(`1970-01-01T${initialData.cut_off_time}`),
           draw_time: new Date(`1970-01-01T${initialData.draw_time}`),
+          type: initialData.type || "default",
+          is_test_draw: initialData.is_test_draw ?? false,
         }
       : {
           name: "",
@@ -50,6 +52,8 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
           color_theme: "#8B5CF6",
           non_single_digit_price: "",
           single_digit_number_price: "",
+          type: "default" as DrawType,
+          is_test_draw: false,
         }
   );
   const [showDatePicker, setShowDatePicker] = useState<null | string>(null);
@@ -145,6 +149,8 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
       color_theme: form.color_theme,
       non_single_digit_price: Number(form.non_single_digit_price),
       single_digit_number_price: Number(form.single_digit_number_price),
+      type: form.type,
+      is_test_draw: form.is_test_draw,
     };
 
     try {
@@ -230,6 +236,84 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
           {errors.color_theme && (
             <Text style={{ color: "#dc2626", fontSize: 13, marginTop: 4 }}>{errors.color_theme}</Text>
           )}
+        </View>
+
+        {/* Draw Type */}
+        <View style={{ marginBottom: 20 }}>
+          <Text style={styles.formLabel}>Draw Type</Text>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            {([
+              { value: "default", label: "Default" },
+              { value: "kerala", label: "Kerala" },
+              { value: "tamil_nadu", label: "Tamil Nadu" },
+            ] as { value: DrawType; label: string }[]).map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                onPress={() => setForm((prev: typeof form) => ({ ...prev, type: opt.value }))}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  borderColor: form.type === opt.value ? "#6366F1" : "#e2e8f0",
+                  backgroundColor: form.type === opt.value ? "#EEF2FF" : "#fff",
+                  alignItems: "center",
+                }}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={{
+                    fontWeight: "600",
+                    fontSize: 13,
+                    color: form.type === opt.value ? "#4338CA" : "#64748B",
+                  }}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Test Draw Toggle */}
+        <View style={{ marginBottom: 20 }}>
+          <TouchableOpacity
+            onPress={() => setForm((prev: typeof form) => ({ ...prev, is_test_draw: !prev.is_test_draw }))}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: 16,
+              borderRadius: 12,
+              borderWidth: 2,
+              borderColor: form.is_test_draw ? "#F59E42" : "#e2e8f0",
+              backgroundColor: form.is_test_draw ? "#FFF7ED" : "#f8fafc",
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={{ color: "#475569", fontWeight: "500", fontSize: 15 }}>
+              Test Draw
+            </Text>
+            <View
+              style={{
+                width: 48,
+                height: 24,
+                borderRadius: 12,
+                padding: 2,
+                backgroundColor: form.is_test_draw ? "#F59E42" : "#9CA3AF",
+              }}
+            >
+              <View
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 10,
+                  backgroundColor: "#fff",
+                  marginLeft: form.is_test_draw ? 24 : 0,
+                }}
+              />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Prices */}
@@ -423,6 +507,21 @@ function DrawCard({
               <Text className="text-red-600 text-sm font-medium">Delete</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        <View className="flex-row flex-wrap gap-2 mb-1">
+          {item.type && item.type !== "default" && (
+            <View className={`px-2 py-0.5 rounded-md ${item.type === "kerala" ? "bg-orange-50" : "bg-teal-50"}`}>
+              <Text className={`text-xs font-semibold ${item.type === "kerala" ? "text-orange-600" : "text-teal-600"}`}>
+                {item.type === "kerala" ? "Kerala" : "Tamil Nadu"}
+              </Text>
+            </View>
+          )}
+          {item.is_test_draw && (
+            <View className="bg-amber-50 px-2 py-0.5 rounded-md">
+              <Text className="text-amber-600 text-xs font-semibold">Test</Text>
+            </View>
+          )}
         </View>
 
         <View className="flex-row flex-wrap gap-3">

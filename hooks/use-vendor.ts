@@ -5,6 +5,7 @@ export type Vendor = {
   id: number;
   name: string;
   is_active: boolean;
+  feature_codenames?: string[];
 };
 
 type CreateVendorParams = { name: string; is_active?: boolean };
