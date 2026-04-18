@@ -38,6 +38,10 @@ export default function RootLayout() {
             name="vendor-config/[id]"
             options={{ title: "Prize Configuration" }}
           />
+          <Stack.Screen
+            name="vendor-extras"
+            options={{ headerShown: false }}
+          />
           <Stack.Screen name="+not-found" options={{ title: "Not Found" }} />
         </Stack>
       </AlertNotificationRoot>
