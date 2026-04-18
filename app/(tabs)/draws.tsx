@@ -454,15 +454,6 @@ function DrawCard({
           </View>
           <View className="flex-row gap-2">
             <TouchableOpacity
-              onPress={onMonitor}
-              className="px-3 py-1.5 bg-indigo-50 rounded-lg flex-row items-center"
-            >
-              <Activity size={13} color="#4F46E5" />
-              <Text className="text-indigo-600 text-sm font-medium ml-1">
-                Monitor
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
               onPress={onEdit}
               className="px-3 py-1.5 bg-gray-100 rounded-lg"
             >
@@ -508,19 +499,30 @@ function DrawCard({
           </View>
         </View>
 
-        <View className="flex-row mt-3 gap-4">
-          <View className="bg-gray-50 px-3 py-2 rounded-lg">
-            <Text className="text-gray-400 text-xs">Non-Single Price</Text>
-            <Text className="text-gray-800 font-bold text-sm">
-              {item.non_single_digit_price}
-            </Text>
+        <View className="flex-row mt-3 items-center justify-between">
+          <View className="flex-row gap-4">
+            <View className="bg-gray-50 px-3 py-2 rounded-lg">
+              <Text className="text-gray-400 text-xs">Non-Single Price</Text>
+              <Text className="text-gray-800 font-bold text-sm">
+                {item.non_single_digit_price}
+              </Text>
+            </View>
+            <View className="bg-gray-50 px-3 py-2 rounded-lg">
+              <Text className="text-gray-400 text-xs">Single Digit Price</Text>
+              <Text className="text-gray-800 font-bold text-sm">
+                {item.single_digit_number_price}
+              </Text>
+            </View>
           </View>
-          <View className="bg-gray-50 px-3 py-2 rounded-lg">
-            <Text className="text-gray-400 text-xs">Single Digit Price</Text>
-            <Text className="text-gray-800 font-bold text-sm">
-              {item.single_digit_number_price}
+          <TouchableOpacity
+            onPress={onMonitor}
+            className="px-3 py-2 bg-indigo-50 rounded-lg flex-row items-center"
+          >
+            <Activity size={14} color="#4F46E5" />
+            <Text className="text-indigo-600 text-sm font-semibold ml-1">
+              Monitor
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
     </View>
