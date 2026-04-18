@@ -504,16 +504,14 @@ export default function ExtraCountsScreen() {
               setType(null);
               setSubType(null);
             }}
-            className={`px-3 py-1.5 rounded-lg border ${
-              !type
-                ? "bg-indigo-50 border-indigo-300"
-                : "bg-white border-gray-200"
-            }`}
+            className={`px-3 py-1.5 rounded-lg border ${!type
+              ? "bg-indigo-50 border-indigo-300"
+              : "bg-white border-gray-200"
+              }`}
           >
             <Text
-              className={`text-xs font-semibold ${
-                !type ? "text-indigo-700" : "text-gray-600"
-              }`}
+              className={`text-xs font-semibold ${!type ? "text-indigo-700" : "text-gray-600"
+                }`}
             >
               All
             </Text>
@@ -529,16 +527,14 @@ export default function ExtraCountsScreen() {
                     setSubType(null);
                   }
                 }}
-                className={`px-3 py-1.5 rounded-lg border ${
-                  active
-                    ? "bg-indigo-50 border-indigo-300"
-                    : "bg-white border-gray-200"
-                }`}
+                className={`px-3 py-1.5 rounded-lg border ${active
+                  ? "bg-indigo-50 border-indigo-300"
+                  : "bg-white border-gray-200"
+                  }`}
               >
                 <Text
-                  className={`text-xs font-semibold ${
-                    active ? "text-indigo-700" : "text-gray-600"
-                  }`}
+                  className={`text-xs font-semibold ${active ? "text-indigo-700" : "text-gray-600"
+                    }`}
                 >
                   {TYPE_LABELS[t]}
                 </Text>
@@ -553,16 +549,14 @@ export default function ExtraCountsScreen() {
         <View className="flex-row flex-wrap gap-2">
           <TouchableOpacity
             onPress={() => setSubType(null)}
-            className={`px-3 py-1.5 rounded-lg border ${
-              !subType
-                ? "bg-indigo-50 border-indigo-300"
-                : "bg-white border-gray-200"
-            }`}
+            className={`px-3 py-1.5 rounded-lg border ${!subType
+              ? "bg-indigo-50 border-indigo-300"
+              : "bg-white border-gray-200"
+              }`}
           >
             <Text
-              className={`text-xs font-semibold ${
-                !subType ? "text-indigo-700" : "text-gray-600"
-              }`}
+              className={`text-xs font-semibold ${!subType ? "text-indigo-700" : "text-gray-600"
+                }`}
             >
               All
             </Text>
@@ -573,16 +567,14 @@ export default function ExtraCountsScreen() {
               <TouchableOpacity
                 key={st}
                 onPress={() => setSubType(st)}
-                className={`px-3 py-1.5 rounded-lg border ${
-                  active
-                    ? "bg-indigo-50 border-indigo-300"
-                    : "bg-white border-gray-200"
-                }`}
+                className={`px-3 py-1.5 rounded-lg border ${active
+                  ? "bg-indigo-50 border-indigo-300"
+                  : "bg-white border-gray-200"
+                  }`}
               >
                 <Text
-                  className={`text-xs font-semibold ${
-                    active ? "text-indigo-700" : "text-gray-600"
-                  }`}
+                  className={`text-xs font-semibold ${active ? "text-indigo-700" : "text-gray-600"
+                    }`}
                 >
                   {SUB_TYPE_LABELS[st]}
                 </Text>
@@ -686,7 +678,7 @@ export default function ExtraCountsScreen() {
           </Text>
         </ScrollView>
       ) : (
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, marginLeft: 14, marginRight: 14 }}>
           <TableHeader />
           <ScrollView
             contentContainerStyle={{ paddingBottom: 100 }}
@@ -818,11 +810,10 @@ function FilterRow({
   return (
     <TouchableOpacity
       onPress={onPress}
-      className={`flex-row items-center justify-between px-3 py-2.5 rounded-xl border ${
-        active
-          ? "bg-indigo-50 border-indigo-200"
-          : "bg-gray-50 border-gray-200"
-      }`}
+      className={`flex-row items-center justify-between px-3 py-2.5 rounded-xl border ${active
+        ? "bg-indigo-50 border-indigo-200"
+        : "bg-gray-50 border-gray-200"
+        }`}
     >
       <View className="flex-row items-center">
         {icon}
@@ -832,9 +823,8 @@ function FilterRow({
       </View>
       <View className="flex-row items-center">
         <Text
-          className={`text-sm font-medium ${
-            active ? "text-indigo-700" : "text-gray-800"
-          }`}
+          className={`text-sm font-medium ${active ? "text-indigo-700" : "text-gray-800"
+            }`}
           numberOfLines={1}
         >
           {value}
