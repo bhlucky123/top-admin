@@ -3,9 +3,10 @@ import useVendorFeature, { VendorFeature } from "@/hooks/use-vendor-feature";
 import { Admin } from "@/hooks/use-staff";
 import { Vendor } from "@/hooks/use-vendor";
 import {
-  COUNT_TYPE_LABELS,
-  MonitoringCountType,
   MonitoringExtraCount,
+  MonitoringType,
+  SUB_TYPE_LABELS,
+  TYPE_LABELS,
 } from "@/hooks/use-monitoring-extra-count";
 import api from "@/utils/axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -20,7 +21,6 @@ import {
   Shield,
   Ticket,
   Trash2,
-  TrendingUp,
   Users,
   X,
 } from "lucide-react-native";
@@ -118,18 +118,17 @@ export default function VendorDetailScreen() {
   });
 
   // Extra-count filter state
-  const [extraCountType, setExtraCountType] =
-    useState<MonitoringCountType | null>(null);
+  const [extraType, setExtraType] = useState<MonitoringType | null>(null);
 
   const {
     data: extraCounts = [],
     isLoading: extrasLoading,
     refetch: refetchExtras,
   } = useQuery<MonitoringExtraCount[]>({
-    queryKey: ["vendor-extras", vendorId, extraCountType],
+    queryKey: ["vendor-extras", vendorId, extraType],
     queryFn: () => {
       const params: Record<string, any> = { vendor__id: vendorId };
-      if (extraCountType) params.count_type = extraCountType;
+      if (extraType) params.type = extraType;
       return api
         .get("/draw-monitoring/extra-count/", { params })
         .then((r) => r.data);
@@ -208,11 +207,10 @@ export default function VendorDetailScreen() {
     queryClient.invalidateQueries({ queryKey: ["vendor", vendorId] });
   };
 
-  const COUNT_TYPES: MonitoringCountType[] = [
+  const TYPES: MonitoringType[] = [
     "single_digit",
     "double_digit",
-    "triple_digit_super",
-    "triple_digit_box",
+    "triple_digit",
   ];
 
   return (
@@ -544,27 +542,27 @@ export default function VendorDetailScreen() {
 
           <View className="flex-row flex-wrap gap-2 mb-3">
             <TouchableOpacity
-              onPress={() => setExtraCountType(null)}
+              onPress={() => setExtraType(null)}
               className={`px-3 py-1.5 rounded-lg border ${
-                !extraCountType
+                !extraType
                   ? "bg-indigo-50 border-indigo-300"
                   : "bg-white border-gray-200"
               }`}
             >
               <Text
                 className={`text-xs font-semibold ${
-                  !extraCountType ? "text-indigo-700" : "text-gray-600"
+                  !extraType ? "text-indigo-700" : "text-gray-600"
                 }`}
               >
                 All
               </Text>
             </TouchableOpacity>
-            {COUNT_TYPES.map((ct) => {
-              const active = extraCountType === ct;
+            {TYPES.map((t) => {
+              const active = extraType === t;
               return (
                 <TouchableOpacity
-                  key={ct}
-                  onPress={() => setExtraCountType(ct)}
+                  key={t}
+                  onPress={() => setExtraType(t)}
                   className={`px-3 py-1.5 rounded-lg border ${
                     active
                       ? "bg-indigo-50 border-indigo-300"
@@ -576,7 +574,7 @@ export default function VendorDetailScreen() {
                       active ? "text-indigo-700" : "text-gray-600"
                     }`}
                   >
-                    {COUNT_TYPE_LABELS[ct]}
+                    {TYPE_LABELS[t]}
                   </Text>
                 </TouchableOpacity>
               );
@@ -596,85 +594,73 @@ export default function VendorDetailScreen() {
             </View>
           ) : (
             <View className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              {extraCounts.map((ec, index) => {
-                const over = ec.extra_count > 0;
-                return (
-                  <View
-                    key={ec.id}
-                    className={`px-5 py-4 ${
-                      index < extraCounts.length - 1
-                        ? "border-b border-gray-100"
-                        : ""
-                    }`}
-                  >
-                    <View className="flex-row items-center justify-between mb-2">
-                      <View className="flex-row items-center flex-1">
-                        <View
-                          className="w-9 h-9 rounded-lg items-center justify-center mr-3"
-                          style={{
-                            backgroundColor: over ? "#FEE2E2" : "#DCFCE7",
-                          }}
-                        >
-                          {over ? (
-                            <AlertTriangle size={16} color="#DC2626" />
-                          ) : (
-                            <TrendingUp size={16} color="#16A34A" />
-                          )}
-                        </View>
-                        <View className="flex-1">
-                          <Text className="text-gray-800 font-semibold text-sm">
-                            {ec.draw_name || `Draw #${ec.draw_session}`}
-                          </Text>
-                          <Text className="text-gray-400 text-xs mt-0.5">
-                            {ec.session_date}
-                          </Text>
-                        </View>
-                      </View>
+              {extraCounts.map((ec, index) => (
+                <View
+                  key={ec.id}
+                  className={`px-5 py-4 ${
+                    index < extraCounts.length - 1
+                      ? "border-b border-gray-100"
+                      : ""
+                  }`}
+                >
+                  <View className="flex-row items-center justify-between mb-2">
+                    <View className="flex-row items-center flex-1">
                       <View
-                        className="px-2 py-0.5 rounded-md"
-                        style={{
-                          backgroundColor: over ? "#FEE2E2" : "#F1F5F9",
-                        }}
+                        className="w-9 h-9 rounded-lg items-center justify-center mr-3"
+                        style={{ backgroundColor: "#FEE2E2" }}
                       >
-                        <Text
-                          className="text-xs font-semibold"
-                          style={{ color: over ? "#B91C1C" : "#475569" }}
-                        >
-                          {COUNT_TYPE_LABELS[ec.count_type]}
+                        <AlertTriangle size={16} color="#DC2626" />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-gray-800 font-semibold text-sm">
+                          {ec.draw_name || `Draw #${ec.draw_session}`}
+                        </Text>
+                        <Text className="text-gray-400 text-xs mt-0.5">
+                          {ec.session_date}
                         </Text>
                       </View>
                     </View>
-                    <View className="flex-row gap-2">
-                      <View className="bg-gray-50 px-3 py-1.5 rounded-md flex-1">
-                        <Text className="text-gray-400 text-xs">Threshold</Text>
-                        <Text className="text-gray-800 font-bold text-sm">
-                          {ec.monitoring_count}
-                        </Text>
-                      </View>
-                      <View className="bg-gray-50 px-3 py-1.5 rounded-md flex-1">
-                        <Text className="text-gray-400 text-xs">Booked</Text>
-                        <Text className="text-gray-800 font-bold text-sm">
-                          {ec.total_booked_count}
+                    <View className="flex-row gap-1.5">
+                      <View
+                        className="px-2 py-0.5 rounded-md"
+                        style={{ backgroundColor: "#EEF2FF" }}
+                      >
+                        <Text
+                          className="text-xs font-semibold"
+                          style={{ color: "#4338CA" }}
+                        >
+                          {TYPE_LABELS[ec.type]}
                         </Text>
                       </View>
                       <View
-                        className="px-3 py-1.5 rounded-md flex-1"
-                        style={{
-                          backgroundColor: over ? "#FEE2E2" : "#F3F4F6",
-                        }}
+                        className="px-2 py-0.5 rounded-md"
+                        style={{ backgroundColor: "#FEE2E2" }}
                       >
-                        <Text className="text-gray-400 text-xs">Extra</Text>
                         <Text
-                          className="font-bold text-sm"
-                          style={{ color: over ? "#B91C1C" : "#1F2937" }}
+                          className="text-xs font-semibold"
+                          style={{ color: "#B91C1C" }}
                         >
-                          {ec.extra_count}
+                          {SUB_TYPE_LABELS[ec.sub_type]}
                         </Text>
                       </View>
                     </View>
                   </View>
-                );
-              })}
+                  <View className="flex-row items-center justify-between bg-gray-50 rounded-md px-3 py-2">
+                    <View className="flex-row items-center">
+                      <Text className="text-gray-400 text-xs mr-2">Number</Text>
+                      <Text className="text-gray-900 font-bold text-base tracking-wider">
+                        {ec.number}
+                      </Text>
+                    </View>
+                    <View className="items-end">
+                      <Text className="text-gray-400 text-xs">Extra</Text>
+                      <Text className="text-red-600 font-bold text-base">
+                        ×{ec.count}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
             </View>
           )}
         </View>

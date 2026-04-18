@@ -83,9 +83,10 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
       newErrors.non_single_digit_price = "Enter a valid price";
     }
     if (
-      form.single_digit_number_price === "" ||
-      isNaN(Number(form.single_digit_number_price)) ||
-      Number(form.single_digit_number_price) <= 0
+      form.type === "default" &&
+      (form.single_digit_number_price === "" ||
+        isNaN(Number(form.single_digit_number_price)) ||
+        Number(form.single_digit_number_price) <= 0)
     ) {
       newErrors.single_digit_number_price = "Enter a valid price";
     }
@@ -139,6 +140,7 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
       return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
     };
 
+    const price = Number(form.non_single_digit_price);
     const data = {
       name: form.name,
       valid_from: form.valid_from.toISOString().split("T")[0],
@@ -146,8 +148,11 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
       cut_off_time: formatTime(form.cut_off_time),
       draw_time: formatTime(form.draw_time),
       color_theme: form.color_theme,
-      non_single_digit_price: Number(form.non_single_digit_price),
-      single_digit_number_price: Number(form.single_digit_number_price),
+      non_single_digit_price: price,
+      single_digit_number_price:
+        form.type === "default"
+          ? Number(form.single_digit_number_price)
+          : price,
       type: form.type,
     };
 
@@ -274,9 +279,54 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
         </View>
 
         {/* Prices */}
-        <View style={styles.priceRow}>
-          <View style={styles.priceCol}>
-            <Text style={styles.formLabel}>Non-Single Digit Price</Text>
+        {form.type === "default" ? (
+          <View style={styles.priceRow}>
+            <View style={styles.priceCol}>
+              <Text style={styles.formLabel}>Non-Single Digit Price</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="₹"
+                keyboardType="numeric"
+                value={form.non_single_digit_price.toString()}
+                onChangeText={(text) =>
+                  setForm((prev: typeof form) => ({
+                    ...prev,
+                    non_single_digit_price: text.replace(/[^0-9.]/g, ""),
+                  }))
+                }
+                placeholderTextColor="#9ca3af"
+              />
+              {errors.non_single_digit_price && (
+                <Text style={{ color: "#dc2626", fontSize: 13, marginTop: 4 }}>
+                  {errors.non_single_digit_price}
+                </Text>
+              )}
+            </View>
+            <View style={styles.priceCol}>
+              <Text style={styles.formLabel}>Single Digit Price</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="₹"
+                keyboardType="numeric"
+                value={form.single_digit_number_price.toString()}
+                onChangeText={(text) =>
+                  setForm((prev: typeof form) => ({
+                    ...prev,
+                    single_digit_number_price: text.replace(/[^0-9.]/g, ""),
+                  }))
+                }
+                placeholderTextColor="#9ca3af"
+              />
+              {errors.single_digit_number_price && (
+                <Text style={{ color: "#dc2626", fontSize: 13, marginTop: 4 }}>
+                  {errors.single_digit_number_price}
+                </Text>
+              )}
+            </View>
+          </View>
+        ) : (
+          <View style={{ marginBottom: 20 }}>
+            <Text style={styles.formLabel}>Price</Text>
             <TextInput
               style={styles.formInput}
               placeholder="₹"
@@ -296,28 +346,7 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
               </Text>
             )}
           </View>
-          <View style={styles.priceCol}>
-            <Text style={styles.formLabel}>Single Digit Price</Text>
-            <TextInput
-              style={styles.formInput}
-              placeholder="₹"
-              keyboardType="numeric"
-              value={form.single_digit_number_price.toString()}
-              onChangeText={(text) =>
-                setForm((prev: typeof form) => ({
-                  ...prev,
-                  single_digit_number_price: text.replace(/[^0-9.]/g, ""),
-                }))
-              }
-              placeholderTextColor="#9ca3af"
-            />
-            {errors.single_digit_number_price && (
-              <Text style={{ color: "#dc2626", fontSize: 13, marginTop: 4 }}>
-                {errors.single_digit_number_price}
-              </Text>
-            )}
-          </View>
-        </View>
+        )}
 
         {/* Dates & Times */}
         <View style={{ marginBottom: 20 }}>
@@ -501,18 +530,29 @@ function DrawCard({
 
         <View className="flex-row mt-3 items-center justify-between">
           <View className="flex-row gap-4">
-            <View className="bg-gray-50 px-3 py-2 rounded-lg">
-              <Text className="text-gray-400 text-xs">Non-Single Price</Text>
-              <Text className="text-gray-800 font-bold text-sm">
-                {item.non_single_digit_price}
-              </Text>
-            </View>
-            <View className="bg-gray-50 px-3 py-2 rounded-lg">
-              <Text className="text-gray-400 text-xs">Single Digit Price</Text>
-              <Text className="text-gray-800 font-bold text-sm">
-                {item.single_digit_number_price}
-              </Text>
-            </View>
+            {item.type && item.type !== "default" ? (
+              <View className="bg-gray-50 px-3 py-2 rounded-lg">
+                <Text className="text-gray-400 text-xs">Price</Text>
+                <Text className="text-gray-800 font-bold text-sm">
+                  {item.non_single_digit_price}
+                </Text>
+              </View>
+            ) : (
+              <>
+                <View className="bg-gray-50 px-3 py-2 rounded-lg">
+                  <Text className="text-gray-400 text-xs">Non-Single Price</Text>
+                  <Text className="text-gray-800 font-bold text-sm">
+                    {item.non_single_digit_price}
+                  </Text>
+                </View>
+                <View className="bg-gray-50 px-3 py-2 rounded-lg">
+                  <Text className="text-gray-400 text-xs">Single Digit Price</Text>
+                  <Text className="text-gray-800 font-bold text-sm">
+                    {item.single_digit_number_price}
+                  </Text>
+                </View>
+              </>
+            )}
           </View>
           <TouchableOpacity
             onPress={onMonitor}

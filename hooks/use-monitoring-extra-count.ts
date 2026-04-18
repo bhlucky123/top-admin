@@ -1,8 +1,14 @@
-export type MonitoringCountType =
-  | "single_digit"
-  | "double_digit"
-  | "triple_digit_super"
-  | "triple_digit_box";
+export type MonitoringType = "single_digit" | "double_digit" | "triple_digit";
+
+export type MonitoringSubType =
+  | "A"
+  | "B"
+  | "C"
+  | "AB"
+  | "BC"
+  | "AC"
+  | "SUPER"
+  | "BOX";
 
 export type MonitoringExtraCount = {
   id: number;
@@ -11,15 +17,42 @@ export type MonitoringExtraCount = {
   vendor_name?: string;
   draw_name?: string;
   session_date: string;
-  count_type: MonitoringCountType;
-  monitoring_count: number;
-  total_booked_count: number;
-  extra_count: number;
+  number: string;
+  count: number;
+  type: MonitoringType;
+  sub_type: MonitoringSubType;
 };
 
-export const COUNT_TYPE_LABELS: Record<MonitoringCountType, string> = {
+export const TYPE_LABELS: Record<MonitoringType, string> = {
   single_digit: "Single Digit",
   double_digit: "Double Digit",
-  triple_digit_super: "Triple Digit Super",
-  triple_digit_box: "Triple Digit Box",
+  triple_digit: "Triple Digit",
 };
+
+export const SUB_TYPE_LABELS: Record<MonitoringSubType, string> = {
+  A: "A",
+  B: "B",
+  C: "C",
+  AB: "AB",
+  BC: "BC",
+  AC: "AC",
+  SUPER: "Super",
+  BOX: "Box",
+};
+
+export const SUB_TYPES_BY_TYPE: Record<MonitoringType, MonitoringSubType[]> = {
+  single_digit: ["A", "B", "C"],
+  double_digit: ["AB", "BC", "AC"],
+  triple_digit: ["SUPER", "BOX"],
+};
+
+export const ALL_SUB_TYPES: MonitoringSubType[] = [
+  "A",
+  "B",
+  "C",
+  "AB",
+  "BC",
+  "AC",
+  "SUPER",
+  "BOX",
+];
