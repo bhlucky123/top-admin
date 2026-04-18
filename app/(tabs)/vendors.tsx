@@ -2,7 +2,7 @@ import useVendor, { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { Activity, Building2, ChevronRight, MoveLeft, Plus, Search } from "lucide-react-native";
+import { Building2, ChevronRight, MoveLeft, Plus, Search } from "lucide-react-native";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -449,25 +449,16 @@ export default function VendorsScreen() {
       <View className="bg-white border-b border-gray-200 px-6 pt-14 pb-5">
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-2xl font-bold text-gray-900">Vendors</Text>
-          <View className="flex-row items-center gap-2">
-            <TouchableOpacity
-              onPress={() => router.push("/vendor-extras")}
-              className="w-11 h-11 bg-gray-100 rounded-full items-center justify-center"
-              activeOpacity={0.85}
-            >
-              <Activity size={20} color="#4F46E5" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => {
-                setEditData(null);
-                setShowForm(true);
-              }}
-              className="w-11 h-11 bg-indigo-600 rounded-full items-center justify-center shadow-md"
-              activeOpacity={0.85}
-            >
-              <Plus size={22} color="#fff" />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            onPress={() => {
+              setEditData(null);
+              setShowForm(true);
+            }}
+            className="w-11 h-11 bg-indigo-600 rounded-full items-center justify-center shadow-md"
+            activeOpacity={0.85}
+          >
+            <Plus size={22} color="#fff" />
+          </TouchableOpacity>
         </View>
         <View className="flex-row items-center bg-gray-100 rounded-xl px-4 py-2.5">
           <Search size={18} color="#9CA3AF" />

@@ -3,7 +3,8 @@ import api from "@/utils/axios";
 import { AntDesign, Feather } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Clock, Palette, Plus, Search, Ticket } from "lucide-react-native";
+import { useRouter } from "expo-router";
+import { Activity, Clock, Palette, Plus, Search, Ticket } from "lucide-react-native";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -518,6 +519,7 @@ function DrawCard({
 // --- Main Screen ---
 export default function DrawsScreen() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState<(Draw & { id: number }) | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -588,15 +590,24 @@ export default function DrawsScreen() {
       <View className="bg-white border-b border-gray-200 px-6 pt-14 pb-5">
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-2xl font-bold text-gray-900">Draws</Text>
-          <TouchableOpacity
-            onPress={() => {
-              setEditData(null);
-              setShowForm(true);
-            }}
-            className="w-11 h-11 bg-indigo-600 rounded-full items-center justify-center shadow-md"
-          >
-            <Plus size={22} color="#fff" />
-          </TouchableOpacity>
+          <View className="flex-row items-center gap-2">
+            <TouchableOpacity
+              onPress={() => router.push("/extra-counts")}
+              className="w-11 h-11 bg-gray-100 rounded-full items-center justify-center"
+              activeOpacity={0.85}
+            >
+              <Activity size={20} color="#4F46E5" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                setEditData(null);
+                setShowForm(true);
+              }}
+              className="w-11 h-11 bg-indigo-600 rounded-full items-center justify-center shadow-md"
+            >
+              <Plus size={22} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
         <View className="flex-row items-center bg-gray-100 rounded-xl px-4 py-2.5">
           <Search size={18} color="#9CA3AF" />
