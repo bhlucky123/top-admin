@@ -1,6 +1,7 @@
 import { useAuthStore } from "@/store/auth";
 import { Redirect, Tabs } from "expo-router";
 import {
+  Activity,
   Building2,
   FileText,
   LayoutDashboard,
@@ -90,6 +91,13 @@ export default function TabLayout() {
           options={{
             title: "Admins",
             tabBarIcon: ({ color }) => <Users size={22} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="monitoring"
+          options={{
+            title: "Monitoring",
+            tabBarIcon: ({ color }) => <Activity size={22} color={color} />,
           }}
         />
         <Tabs.Screen
