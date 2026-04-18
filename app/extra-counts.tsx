@@ -1,3 +1,4 @@
+import { Draw } from "@/hooks/use-draw";
 import {
   COUNT_TYPE_LABELS,
   MonitoringCountType,
@@ -17,6 +18,7 @@ import {
   ChevronDown,
   MoveLeft,
   Search,
+  Ticket,
   TrendingUp,
   X,
 } from "lucide-react-native";
@@ -42,22 +44,28 @@ const COUNT_TYPES: MonitoringCountType[] = [
   "triple_digit_box",
 ];
 
-function VendorPickerModal({
+function PickerModal<T extends { id: number; name: string }>({
   visible,
-  vendors,
+  title,
+  clearLabel,
+  searchPlaceholder,
+  items,
   selectedId,
   onSelect,
   onClose,
 }: {
   visible: boolean;
-  vendors: Vendor[];
+  title: string;
+  clearLabel: string;
+  searchPlaceholder: string;
+  items: T[];
   selectedId: number | null;
-  onSelect: (v: Vendor | null) => void;
+  onSelect: (item: T | null) => void;
   onClose: () => void;
 }) {
   const [search, setSearch] = useState("");
-  const filtered = vendors.filter((v) =>
-    v.name.toLowerCase().includes(search.toLowerCase())
+  const filtered = items.filter((i) =>
+    i.name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -65,7 +73,7 @@ function VendorPickerModal({
       <View style={styles.modalBackdrop}>
         <View style={styles.modalSheet}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Filter by Vendor</Text>
+            <Text style={styles.modalTitle}>{title}</Text>
             <TouchableOpacity onPress={onClose} style={styles.modalClose}>
               <X size={20} color="#64748b" />
             </TouchableOpacity>
@@ -73,7 +81,7 @@ function VendorPickerModal({
           <View style={styles.searchRow}>
             <Search size={16} color="#9CA3AF" />
             <TextInput
-              placeholder="Search vendors..."
+              placeholder={searchPlaceholder}
               value={search}
               onChangeText={setSearch}
               style={styles.searchInput}
@@ -87,7 +95,7 @@ function VendorPickerModal({
               onClose();
             }}
           >
-            <Text style={styles.clearText}>All vendors</Text>
+            <Text style={styles.clearText}>{clearLabel}</Text>
           </TouchableOpacity>
           <FlatList
             data={filtered}
@@ -203,10 +211,12 @@ export default function ExtraCountsScreen() {
   const router = useRouter();
 
   const [vendorId, setVendorId] = useState<number | null>(null);
+  const [drawId, setDrawId] = useState<number | null>(null);
   const [date, setDate] = useState<Date | null>(null);
   const [countType, setCountType] = useState<MonitoringCountType | null>(null);
 
   const [showVendorPicker, setShowVendorPicker] = useState(false);
+  const [showDrawPicker, setShowDrawPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const { data: vendors = [] } = useQuery<Vendor[]>({
@@ -215,9 +225,21 @@ export default function ExtraCountsScreen() {
     retry: false,
   });
 
+  const { data: draws = [] } = useQuery<(Draw & { id: number })[]>({
+    queryKey: ["draws-list"],
+    queryFn: () => api.get("/draw/list/").then((r) => r.data),
+    retry: false,
+  });
+
   const queryKey = useMemo(
-    () => ["extra-counts", vendorId, date?.toISOString().split("T")[0], countType],
-    [vendorId, date, countType]
+    () => [
+      "extra-counts",
+      vendorId,
+      drawId,
+      date?.toISOString().split("T")[0],
+      countType,
+    ],
+    [vendorId, drawId, date, countType]
   );
 
   const {
@@ -231,6 +253,7 @@ export default function ExtraCountsScreen() {
     queryFn: () => {
       const params: Record<string, any> = {};
       if (vendorId) params.vendor__id = vendorId;
+      if (drawId) params.draw_session__draw__id = drawId;
       if (date) params.draw_session__session_date = date.toISOString().split("T")[0];
       if (countType) params.count_type = countType;
       return api
@@ -241,10 +264,12 @@ export default function ExtraCountsScreen() {
   });
 
   const vendorName = vendors.find((v) => v.id === vendorId)?.name;
-  const hasFilters = !!vendorId || !!date || !!countType;
+  const drawName = draws.find((d) => d.id === drawId)?.name;
+  const hasFilters = !!vendorId || !!drawId || !!date || !!countType;
 
   const clearAll = () => {
     setVendorId(null);
+    setDrawId(null);
     setDate(null);
     setCountType(null);
   };
@@ -272,57 +297,27 @@ export default function ExtraCountsScreen() {
 
       {/* Filters */}
       <View className="bg-white px-6 pt-4 pb-5 border-b border-gray-100 gap-2">
-        <View className="flex-row items-center gap-2">
-          <TouchableOpacity
-            onPress={() => setShowVendorPicker(true)}
-            className={`flex-1 flex-row items-center justify-between px-3 py-2.5 rounded-xl border ${
-              vendorId
-                ? "bg-indigo-50 border-indigo-200"
-                : "bg-gray-50 border-gray-200"
-            }`}
-          >
-            <View className="flex-row items-center flex-1">
-              <Building2 size={14} color="#6366F1" />
-              <Text
-                className="ml-2 text-xs font-semibold text-gray-500"
-                numberOfLines={1}
-              >
-                Vendor
-              </Text>
-            </View>
-            <Text
-              className={`text-sm font-medium ml-2 ${
-                vendorId ? "text-indigo-700" : "text-gray-800"
-              }`}
-              numberOfLines={1}
-            >
-              {vendorName || "All"}
-            </Text>
-            <ChevronDown size={14} color="#6366F1" style={{ marginLeft: 6 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setShowDatePicker(true)}
-            className={`flex-1 flex-row items-center justify-between px-3 py-2.5 rounded-xl border ${
-              date ? "bg-indigo-50 border-indigo-200" : "bg-gray-50 border-gray-200"
-            }`}
-          >
-            <View className="flex-row items-center flex-1">
-              <Calendar size={14} color="#6366F1" />
-              <Text className="ml-2 text-xs font-semibold text-gray-500">
-                Date
-              </Text>
-            </View>
-            <Text
-              className={`text-sm font-medium ml-2 ${
-                date ? "text-indigo-700" : "text-gray-800"
-              }`}
-            >
-              {date ? date.toISOString().split("T")[0] : "All"}
-            </Text>
-            <ChevronDown size={14} color="#6366F1" style={{ marginLeft: 6 }} />
-          </TouchableOpacity>
-        </View>
+        <FilterRow
+          icon={<Building2 size={14} color="#6366F1" />}
+          label="Vendor"
+          value={vendorName || "All"}
+          active={!!vendorId}
+          onPress={() => setShowVendorPicker(true)}
+        />
+        <FilterRow
+          icon={<Ticket size={14} color="#6366F1" />}
+          label="Draw"
+          value={drawName || "All"}
+          active={!!drawId}
+          onPress={() => setShowDrawPicker(true)}
+        />
+        <FilterRow
+          icon={<Calendar size={14} color="#6366F1" />}
+          label="Date"
+          value={date ? date.toISOString().split("T")[0] : "All"}
+          active={!!date}
+          onPress={() => setShowDatePicker(true)}
+        />
 
         <View className="flex-row flex-wrap gap-2">
           <TouchableOpacity
@@ -441,12 +436,25 @@ export default function ExtraCountsScreen() {
         />
       )}
 
-      <VendorPickerModal
+      <PickerModal
         visible={showVendorPicker}
-        vendors={vendors}
+        title="Filter by Vendor"
+        clearLabel="All vendors"
+        searchPlaceholder="Search vendors..."
+        items={vendors}
         selectedId={vendorId}
         onSelect={(v) => setVendorId(v ? v.id : null)}
         onClose={() => setShowVendorPicker(false)}
+      />
+      <PickerModal
+        visible={showDrawPicker}
+        title="Filter by Draw"
+        clearLabel="All draws"
+        searchPlaceholder="Search draws..."
+        items={draws}
+        selectedId={drawId}
+        onSelect={(d) => setDrawId(d ? d.id : null)}
+        onClose={() => setShowDrawPicker(false)}
       />
       {showDatePicker && (
         <DateTimePicker
@@ -460,6 +468,49 @@ export default function ExtraCountsScreen() {
         />
       )}
     </View>
+  );
+}
+
+function FilterRow({
+  icon,
+  label,
+  value,
+  active,
+  onPress,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className={`flex-row items-center justify-between px-3 py-2.5 rounded-xl border ${
+        active
+          ? "bg-indigo-50 border-indigo-200"
+          : "bg-gray-50 border-gray-200"
+      }`}
+    >
+      <View className="flex-row items-center">
+        {icon}
+        <Text className="ml-2 text-xs font-semibold text-gray-500">
+          {label}
+        </Text>
+      </View>
+      <View className="flex-row items-center">
+        <Text
+          className={`text-sm font-medium ${
+            active ? "text-indigo-700" : "text-gray-800"
+          }`}
+          numberOfLines={1}
+        >
+          {value}
+        </Text>
+        <ChevronDown size={14} color="#6366F1" style={{ marginLeft: 6 }} />
+      </View>
+    </TouchableOpacity>
   );
 }
 

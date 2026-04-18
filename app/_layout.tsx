@@ -39,7 +39,7 @@ export default function RootLayout() {
             options={{ title: "Prize Configuration" }}
           />
           <Stack.Screen
-            name="vendor-extras"
+            name="extra-counts"
             options={{ headerShown: false }}
           />
           <Stack.Screen name="+not-found" options={{ title: "Not Found" }} />
