@@ -2,7 +2,7 @@ import useVendor, { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { Building2, ChevronRight, MoveLeft, Plus, Search } from "lucide-react-native";
+import { Activity, Building2, ChevronRight, MoveLeft, Plus, Search } from "lucide-react-native";
 import { useState } from "react";
 import {
   ActivityIndicator,
