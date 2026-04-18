@@ -42,6 +42,10 @@ export default function RootLayout() {
             name="extra-counts"
             options={{ headerShown: false }}
           />
+          <Stack.Screen
+            name="transfer-log"
+            options={{ headerShown: false }}
+          />
           <Stack.Screen name="+not-found" options={{ title: "Not Found" }} />
         </Stack>
       </AlertNotificationRoot>

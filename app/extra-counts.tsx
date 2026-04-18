@@ -1,4 +1,5 @@
 import { Draw } from "@/hooks/use-draw";
+import useMonitoringActions from "@/hooks/use-monitoring-actions";
 import {
   ALL_SUB_TYPES,
   MonitoringExtraCount,
@@ -11,22 +12,28 @@ import {
 import { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
 import { AntDesign } from "@expo/vector-icons";
+import Clipboard from "@react-native-clipboard/clipboard";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   Activity,
   Building2,
   Calendar,
   ChevronDown,
+  Copy,
+  History,
   MoveLeft,
   Search,
+  Send,
   Ticket,
+  Trash2,
   X,
 } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   Platform,
@@ -335,6 +342,112 @@ export default function ExtraCountsScreen() {
 
   const totalExtra = items.reduce((sum, i) => sum + i.count, 0);
 
+  const queryClient = useQueryClient();
+  const { copyAll, clear, transferAll } = useMonitoringActions();
+
+  const handleCopyAll = async () => {
+    try {
+      const params: Record<string, any> = {};
+      if (vendorId) params.vendor__id = vendorId;
+      if (drawId) params.draw_session__draw__id = drawId;
+      if (date)
+        params.draw_session__session_date = date.toISOString().split("T")[0];
+      if (type) params.type = type;
+      if (subType) params.sub_type = subType;
+      const lines = await copyAll.mutateAsync(params);
+      if (!lines.length) {
+        Alert.alert("Nothing to copy", "No extra-count entries match the current filters.");
+        return;
+      }
+      Clipboard.setString(lines.join("\n"));
+      Alert.alert("Copied", `${lines.length} line${lines.length === 1 ? "" : "s"} copied to clipboard.`);
+    } catch (err: any) {
+      const msg = typeof err === "string" ? err : err?.message || "Failed to copy.";
+      Alert.alert("Error", typeof msg === "string" ? msg : JSON.stringify(msg));
+    }
+  };
+
+  const handleClear = () => {
+    if (!items.length) {
+      Alert.alert("Nothing to clear", "No extra-count entries match the current filters.");
+      return;
+    }
+    const parts: string[] = [];
+    if (vendorName) parts.push(`vendor "${vendorName}"`);
+    if (drawName) parts.push(`draw "${drawName}"`);
+    if (date) parts.push(`date ${date.toISOString().split("T")[0]}`);
+    if (type) parts.push(`type ${TYPE_LABELS[type]}`);
+    if (subType) parts.push(`sub-type ${SUB_TYPE_LABELS[subType]}`);
+    const scope = parts.length ? parts.join(", ") : "all filtered entries";
+    Alert.alert(
+      "Clear Extra Counts",
+      `Delete entries for ${scope}? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            const body: Record<string, any> = {};
+            if (vendorId) body.vendor_id = vendorId;
+            if (drawId) body.draw_id = drawId;
+            if (date) body.session_date = date.toISOString().split("T")[0];
+            if (type) body.type = type;
+            if (subType) body.sub_type = subType;
+            clear.mutate(body, {
+              onSuccess: (res) => {
+                queryClient.invalidateQueries({ queryKey: ["extra-counts"] });
+                Alert.alert("Cleared", `${res.deleted_count} record${res.deleted_count === 1 ? "" : "s"} deleted.`);
+              },
+              onError: (err: any) => {
+                const msg = typeof err === "string" ? err : err?.message || "Failed to clear.";
+                Alert.alert("Error", typeof msg === "string" ? msg : JSON.stringify(msg));
+              },
+            });
+          },
+        },
+      ]
+    );
+  };
+
+  const handleTransferAll = () => {
+    if (!drawId) {
+      Alert.alert(
+        "Select a draw",
+        "Transfer All requires a specific draw. Pick one from the Draw filter above."
+      );
+      return;
+    }
+    Alert.alert(
+      "Transfer All Extras",
+      `Distribute extras across vendors for "${drawName}" (today's session)?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Transfer",
+          onPress: () => {
+            transferAll.mutate(
+              { draw_id: drawId },
+              {
+                onSuccess: (res) => {
+                  queryClient.invalidateQueries({ queryKey: ["extra-counts"] });
+                  Alert.alert(
+                    "Transfer Complete",
+                    `Transferred: ${res.total_transferred}\nRemaining extra: ${res.total_remaining_extra}`
+                  );
+                },
+                onError: (err: any) => {
+                  const msg = typeof err === "string" ? err : err?.message || "Transfer failed.";
+                  Alert.alert("Error", typeof msg === "string" ? msg : JSON.stringify(msg));
+                },
+              }
+            );
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View className="flex-1 bg-gray-50">
       <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
@@ -350,7 +463,13 @@ export default function ExtraCountsScreen() {
             <MoveLeft size={22} color="#4B5563" />
           </TouchableOpacity>
           <Text className="text-xl font-bold text-gray-800">Extra Counts</Text>
-          <View className="w-10" />
+          <TouchableOpacity
+            onPress={() => router.push("/transfer-log")}
+            className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
+            activeOpacity={0.7}
+          >
+            <History size={20} color="#4F46E5" />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -501,6 +620,32 @@ export default function ExtraCountsScreen() {
         )}
       </View>
 
+      {/* Actions */}
+      <View className="bg-white px-4 py-3 border-b border-gray-100 flex-row gap-2">
+        <ActionButton
+          icon={<Copy size={14} color="#4338CA" />}
+          label="Copy"
+          onPress={handleCopyAll}
+          busy={copyAll.isPending}
+          tone="indigo"
+        />
+        <ActionButton
+          icon={<Send size={14} color="#047857" />}
+          label="Transfer"
+          onPress={handleTransferAll}
+          busy={transferAll.isPending}
+          disabled={!drawId}
+          tone="emerald"
+        />
+        <ActionButton
+          icon={<Trash2 size={14} color="#B91C1C" />}
+          label="Clear"
+          onPress={handleClear}
+          busy={clear.isPending}
+          tone="red"
+        />
+      </View>
+
       {/* Body */}
       {isError ? (
         <View className="flex-1 justify-center items-center px-8">
@@ -593,6 +738,67 @@ export default function ExtraCountsScreen() {
         />
       )}
     </View>
+  );
+}
+
+function ActionButton({
+  icon,
+  label,
+  onPress,
+  busy,
+  disabled,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onPress: () => void;
+  busy?: boolean;
+  disabled?: boolean;
+  tone: "indigo" | "emerald" | "red";
+}) {
+  const bgByTone: Record<typeof tone, string> = {
+    indigo: "#EEF2FF",
+    emerald: "#ECFDF5",
+    red: "#FEF2F2",
+  } as const;
+  const textByTone: Record<typeof tone, string> = {
+    indigo: "#4338CA",
+    emerald: "#047857",
+    red: "#B91C1C",
+  } as const;
+  const inactive = busy || disabled;
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={inactive}
+      activeOpacity={0.8}
+      style={{
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        paddingVertical: 10,
+        borderRadius: 10,
+        backgroundColor: bgByTone[tone],
+        opacity: inactive ? 0.5 : 1,
+      }}
+    >
+      {busy ? (
+        <ActivityIndicator size="small" color={textByTone[tone]} />
+      ) : (
+        icon
+      )}
+      <Text
+        style={{
+          fontSize: 13,
+          fontWeight: "700",
+          color: textByTone[tone],
+        }}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
   );
 }
 
