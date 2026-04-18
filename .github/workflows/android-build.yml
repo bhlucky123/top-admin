@@ -9,7 +9,28 @@ permissions:
   contents: write
 
 jobs:
+  check-config:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check build flag in utils/config.ts
+        id: check
+        run: |
+          if grep -qE '^[[:space:]]*build:[[:space:]]*true' utils/config.ts; then
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "build flag is true — proceeding."
+          else
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            echo "build flag is not true in utils/config.ts — skipping workflow."
+          fi
+
   build:
+    needs: check-config
+    if: needs.check-config.outputs.should_build == 'true'
     runs-on: ubuntu-latest
 
     steps:
