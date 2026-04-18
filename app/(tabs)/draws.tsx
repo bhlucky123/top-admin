@@ -427,10 +427,12 @@ function DrawCard({
   item,
   onEdit,
   onDelete,
+  onMonitor,
 }: {
   item: Draw & { id: number };
   onEdit: () => void;
   onDelete: () => void;
+  onMonitor: () => void;
 }) {
   const themeColor = item.color_theme && /^#[0-9a-fA-F]{6}$/.test(item.color_theme)
     ? item.color_theme
@@ -451,6 +453,15 @@ function DrawCard({
             <Text className="text-lg font-bold text-gray-800">{item.name}</Text>
           </View>
           <View className="flex-row gap-2">
+            <TouchableOpacity
+              onPress={onMonitor}
+              className="px-3 py-1.5 bg-indigo-50 rounded-lg flex-row items-center"
+            >
+              <Activity size={13} color="#4F46E5" />
+              <Text className="text-indigo-600 text-sm font-medium ml-1">
+                Monitor
+              </Text>
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={onEdit}
               className="px-3 py-1.5 bg-gray-100 rounded-lg"
@@ -639,6 +650,12 @@ export default function DrawsScreen() {
                 setShowForm(true);
               }}
               onDelete={() => handleDelete(item)}
+              onMonitor={() =>
+                router.push({
+                  pathname: "/extra-counts",
+                  params: { drawId: String(item.id) },
+                })
+              }
             />
           )}
           refreshControl={

@@ -9,7 +9,7 @@ import api from "@/utils/axios";
 import { AntDesign } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   Activity,
   AlertTriangle,
@@ -210,8 +210,12 @@ function ExtraCountRow({ item }: { item: MonitoringExtraCount }) {
 export default function ExtraCountsScreen() {
   const router = useRouter();
 
-  const [vendorId, setVendorId] = useState<number | null>(null);
-  const [drawId, setDrawId] = useState<number | null>(null);
+  const params = useLocalSearchParams<{ drawId?: string; vendorId?: string }>();
+  const initialDrawId = params.drawId ? Number(params.drawId) : null;
+  const initialVendorId = params.vendorId ? Number(params.vendorId) : null;
+
+  const [vendorId, setVendorId] = useState<number | null>(initialVendorId);
+  const [drawId, setDrawId] = useState<number | null>(initialDrawId);
   const [date, setDate] = useState<Date | null>(null);
   const [countType, setCountType] = useState<MonitoringCountType | null>(null);
 
