@@ -1,8 +1,12 @@
 import { Draw } from "@/hooks/use-draw";
 import {
-  COUNT_TYPE_LABELS,
-  MonitoringCountType,
+  ALL_SUB_TYPES,
   MonitoringExtraCount,
+  MonitoringSubType,
+  MonitoringType,
+  SUB_TYPES_BY_TYPE,
+  SUB_TYPE_LABELS,
+  TYPE_LABELS,
 } from "@/hooks/use-monitoring-extra-count";
 import { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
@@ -19,7 +23,6 @@ import {
   MoveLeft,
   Search,
   Ticket,
-  TrendingUp,
   X,
 } from "lucide-react-native";
 import { useMemo, useState } from "react";
@@ -37,11 +40,10 @@ import {
   View,
 } from "react-native";
 
-const COUNT_TYPES: MonitoringCountType[] = [
+const TYPES: MonitoringType[] = [
   "single_digit",
   "double_digit",
-  "triple_digit_super",
-  "triple_digit_box",
+  "triple_digit",
 ];
 
 function PickerModal<T extends { id: number; name: string }>({
@@ -134,25 +136,17 @@ function PickerModal<T extends { id: number; name: string }>({
 }
 
 function ExtraCountRow({ item }: { item: MonitoringExtraCount }) {
-  const over = item.extra_count > 0;
   return (
     <View className="bg-white mx-4 mb-3 rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-      <View
-        className="h-1.5"
-        style={{ backgroundColor: over ? "#F43F5E" : "#10B981" }}
-      />
+      <View className="h-1.5" style={{ backgroundColor: "#F43F5E" }} />
       <View className="p-5">
         <View className="flex-row items-center justify-between mb-3">
           <View className="flex-row items-center flex-1">
             <View
               className="w-10 h-10 rounded-xl items-center justify-center mr-3"
-              style={{ backgroundColor: over ? "#FEE2E2" : "#DCFCE7" }}
+              style={{ backgroundColor: "#FEE2E2" }}
             >
-              {over ? (
-                <AlertTriangle size={18} color="#DC2626" />
-              ) : (
-                <TrendingUp size={18} color="#16A34A" />
-              )}
+              <AlertTriangle size={18} color="#DC2626" />
             </View>
             <View className="flex-1">
               <Text className="text-base font-bold text-gray-800">
@@ -163,42 +157,43 @@ function ExtraCountRow({ item }: { item: MonitoringExtraCount }) {
               </Text>
             </View>
           </View>
-          <View
-            className="px-2.5 py-1 rounded-md"
-            style={{ backgroundColor: over ? "#FEE2E2" : "#DCFCE7" }}
-          >
-            <Text
-              className="text-xs font-semibold"
-              style={{ color: over ? "#B91C1C" : "#15803D" }}
+          <View className="flex-row gap-1.5">
+            <View
+              className="px-2.5 py-1 rounded-md"
+              style={{ backgroundColor: "#EEF2FF" }}
             >
-              {COUNT_TYPE_LABELS[item.count_type]}
-            </Text>
+              <Text
+                className="text-xs font-semibold"
+                style={{ color: "#4338CA" }}
+              >
+                {TYPE_LABELS[item.type]}
+              </Text>
+            </View>
+            <View
+              className="px-2.5 py-1 rounded-md"
+              style={{ backgroundColor: "#FEE2E2" }}
+            >
+              <Text
+                className="text-xs font-semibold"
+                style={{ color: "#B91C1C" }}
+              >
+                {SUB_TYPE_LABELS[item.sub_type]}
+              </Text>
+            </View>
           </View>
         </View>
 
-        <View className="flex-row gap-2">
-          <View className="bg-gray-50 px-3 py-2 rounded-lg flex-1">
-            <Text className="text-gray-400 text-xs">Threshold</Text>
-            <Text className="text-gray-800 font-bold text-sm">
-              {item.monitoring_count}
+        <View className="flex-row items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
+          <View className="flex-row items-center">
+            <Text className="text-gray-400 text-xs mr-2">Number</Text>
+            <Text className="text-gray-900 font-bold text-xl tracking-wider">
+              {item.number}
             </Text>
           </View>
-          <View className="bg-gray-50 px-3 py-2 rounded-lg flex-1">
-            <Text className="text-gray-400 text-xs">Booked</Text>
-            <Text className="text-gray-800 font-bold text-sm">
-              {item.total_booked_count}
-            </Text>
-          </View>
-          <View
-            className="px-3 py-2 rounded-lg flex-1"
-            style={{ backgroundColor: over ? "#FEE2E2" : "#F3F4F6" }}
-          >
-            <Text className="text-gray-400 text-xs">Extra</Text>
-            <Text
-              className="font-bold text-sm"
-              style={{ color: over ? "#B91C1C" : "#1F2937" }}
-            >
-              {item.extra_count}
+          <View className="items-end">
+            <Text className="text-gray-400 text-xs">Extra Count</Text>
+            <Text className="text-red-600 font-bold text-lg">
+              ×{item.count}
             </Text>
           </View>
         </View>
@@ -217,7 +212,8 @@ export default function ExtraCountsScreen() {
   const [vendorId, setVendorId] = useState<number | null>(initialVendorId);
   const [drawId, setDrawId] = useState<number | null>(initialDrawId);
   const [date, setDate] = useState<Date | null>(null);
-  const [countType, setCountType] = useState<MonitoringCountType | null>(null);
+  const [type, setType] = useState<MonitoringType | null>(null);
+  const [subType, setSubType] = useState<MonitoringSubType | null>(null);
 
   const [showVendorPicker, setShowVendorPicker] = useState(false);
   const [showDrawPicker, setShowDrawPicker] = useState(false);
@@ -241,9 +237,10 @@ export default function ExtraCountsScreen() {
       vendorId,
       drawId,
       date?.toISOString().split("T")[0],
-      countType,
+      type,
+      subType,
     ],
-    [vendorId, drawId, date, countType]
+    [vendorId, drawId, date, type, subType]
   );
 
   const {
@@ -259,7 +256,8 @@ export default function ExtraCountsScreen() {
       if (vendorId) params.vendor__id = vendorId;
       if (drawId) params.draw_session__draw__id = drawId;
       if (date) params.draw_session__session_date = date.toISOString().split("T")[0];
-      if (countType) params.count_type = countType;
+      if (type) params.type = type;
+      if (subType) params.sub_type = subType;
       return api
         .get("/draw-monitoring/extra-count/", { params })
         .then((r) => r.data);
@@ -269,16 +267,22 @@ export default function ExtraCountsScreen() {
 
   const vendorName = vendors.find((v) => v.id === vendorId)?.name;
   const drawName = draws.find((d) => d.id === drawId)?.name;
-  const hasFilters = !!vendorId || !!drawId || !!date || !!countType;
+  const hasFilters =
+    !!vendorId || !!drawId || !!date || !!type || !!subType;
 
   const clearAll = () => {
     setVendorId(null);
     setDrawId(null);
     setDate(null);
-    setCountType(null);
+    setType(null);
+    setSubType(null);
   };
 
-  const overCount = items.filter((i) => i.extra_count > 0).length;
+  const visibleSubTypes: MonitoringSubType[] = type
+    ? SUB_TYPES_BY_TYPE[type]
+    : ALL_SUB_TYPES;
+
+  const totalExtra = items.reduce((sum, i) => sum + i.count, 0);
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -323,29 +327,38 @@ export default function ExtraCountsScreen() {
           onPress={() => setShowDatePicker(true)}
         />
 
+        <Text className="text-gray-400 text-xs font-semibold mt-1">Type</Text>
         <View className="flex-row flex-wrap gap-2">
           <TouchableOpacity
-            onPress={() => setCountType(null)}
+            onPress={() => {
+              setType(null);
+              setSubType(null);
+            }}
             className={`px-3 py-1.5 rounded-lg border ${
-              !countType
+              !type
                 ? "bg-indigo-50 border-indigo-300"
                 : "bg-white border-gray-200"
             }`}
           >
             <Text
               className={`text-xs font-semibold ${
-                !countType ? "text-indigo-700" : "text-gray-600"
+                !type ? "text-indigo-700" : "text-gray-600"
               }`}
             >
-              All types
+              All
             </Text>
           </TouchableOpacity>
-          {COUNT_TYPES.map((ct) => {
-            const active = countType === ct;
+          {TYPES.map((t) => {
+            const active = type === t;
             return (
               <TouchableOpacity
-                key={ct}
-                onPress={() => setCountType(ct)}
+                key={t}
+                onPress={() => {
+                  setType(t);
+                  if (subType && !SUB_TYPES_BY_TYPE[t].includes(subType)) {
+                    setSubType(null);
+                  }
+                }}
                 className={`px-3 py-1.5 rounded-lg border ${
                   active
                     ? "bg-indigo-50 border-indigo-300"
@@ -357,7 +370,51 @@ export default function ExtraCountsScreen() {
                     active ? "text-indigo-700" : "text-gray-600"
                   }`}
                 >
-                  {COUNT_TYPE_LABELS[ct]}
+                  {TYPE_LABELS[t]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <Text className="text-gray-400 text-xs font-semibold mt-2">
+          Sub-type
+        </Text>
+        <View className="flex-row flex-wrap gap-2">
+          <TouchableOpacity
+            onPress={() => setSubType(null)}
+            className={`px-3 py-1.5 rounded-lg border ${
+              !subType
+                ? "bg-indigo-50 border-indigo-300"
+                : "bg-white border-gray-200"
+            }`}
+          >
+            <Text
+              className={`text-xs font-semibold ${
+                !subType ? "text-indigo-700" : "text-gray-600"
+              }`}
+            >
+              All
+            </Text>
+          </TouchableOpacity>
+          {visibleSubTypes.map((st) => {
+            const active = subType === st;
+            return (
+              <TouchableOpacity
+                key={st}
+                onPress={() => setSubType(st)}
+                className={`px-3 py-1.5 rounded-lg border ${
+                  active
+                    ? "bg-indigo-50 border-indigo-300"
+                    : "bg-white border-gray-200"
+                }`}
+              >
+                <Text
+                  className={`text-xs font-semibold ${
+                    active ? "text-indigo-700" : "text-gray-600"
+                  }`}
+                >
+                  {SUB_TYPE_LABELS[st]}
                 </Text>
               </TouchableOpacity>
             );
@@ -379,14 +436,14 @@ export default function ExtraCountsScreen() {
           <View className="flex-row gap-2 mt-1">
             <View className="px-3 py-1.5 rounded-lg bg-gray-100">
               <Text className="text-gray-500 text-xs">
-                Total{" "}
+                Records{" "}
                 <Text className="text-gray-800 font-bold">{items.length}</Text>
               </Text>
             </View>
             <View className="px-3 py-1.5 rounded-lg bg-red-50">
               <Text className="text-red-500 text-xs">
-                Over threshold{" "}
-                <Text className="text-red-700 font-bold">{overCount}</Text>
+                Extra Total{" "}
+                <Text className="text-red-700 font-bold">{totalExtra}</Text>
               </Text>
             </View>
           </View>
