@@ -2,7 +2,7 @@ import useVendor, { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { Building2, ChevronRight, MoveLeft, Plus, Search } from "lucide-react-native";
+import { Activity, Building2, ChevronRight, MoveLeft, Plus, Search } from "lucide-react-native";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -19,6 +19,14 @@ import {
   View,
 } from "react-native";
 
+type VendorFormData = {
+  name: string;
+  monitoring_single_digit_count: number;
+  monitoring_double_digit_count: number;
+  monitoring_triple_digit_super_count: number;
+  monitoring_triple_digit_box_count: number;
+};
+
 // --- Vendor Form ---
 function VendorForm({
   onSubmit,
@@ -26,21 +34,54 @@ function VendorForm({
   onCancel,
   submitting,
 }: {
-  onSubmit: (data: { name: string }) => void;
+  onSubmit: (data: VendorFormData) => void;
   defaultValues?: Partial<Vendor>;
   onCancel: () => void;
   submitting: boolean;
 }) {
   const [name, setName] = useState(defaultValues?.name || "");
-  const [error, setError] = useState("");
+  const [single, setSingle] = useState(
+    String(defaultValues?.monitoring_single_digit_count ?? "")
+  );
+  const [double, setDouble] = useState(
+    String(defaultValues?.monitoring_double_digit_count ?? "")
+  );
+  const [superCount, setSuperCount] = useState(
+    String(defaultValues?.monitoring_triple_digit_super_count ?? "")
+  );
+  const [box, setBox] = useState(
+    String(defaultValues?.monitoring_triple_digit_box_count ?? "")
+  );
+  const [errors, setErrors] = useState<{ [k: string]: string }>({});
+
+  const validate = () => {
+    const e: { [k: string]: string } = {};
+    if (!name.trim()) e.name = "Vendor name is required";
+    ([
+      { key: "single", value: single },
+      { key: "double", value: double },
+      { key: "super", value: superCount },
+      { key: "box", value: box },
+    ] as const).forEach(({ key, value }) => {
+      if (value === "") return; // allow blank → treated as 0
+      if (isNaN(Number(value)) || Number(value) < 0) {
+        e[key] = "Enter a valid count";
+      }
+    });
+    setErrors(e);
+    setTimeout(() => setErrors({}), 3000);
+    return Object.keys(e).length === 0;
+  };
 
   const handleSubmit = () => {
-    if (!name.trim()) {
-      setError("Vendor name is required");
-      return;
-    }
-    setError("");
-    onSubmit({ name: name.trim() });
+    if (!validate()) return;
+    onSubmit({
+      name: name.trim(),
+      monitoring_single_digit_count: Number(single || 0),
+      monitoring_double_digit_count: Number(double || 0),
+      monitoring_triple_digit_super_count: Number(superCount || 0),
+      monitoring_triple_digit_box_count: Number(box || 0),
+    });
   };
 
   const isEdit = !!defaultValues?.id;
@@ -79,7 +120,7 @@ function VendorForm({
             </Text>
             <TextInput
               className={`border-2 rounded-xl px-4 py-4 bg-white text-gray-800 font-medium ${
-                error
+                errors.name
                   ? "border-red-300 bg-red-50"
                   : name.trim()
                   ? "border-green-300 bg-green-50"
@@ -88,18 +129,84 @@ function VendorForm({
               placeholder="Enter vendor name"
               placeholderTextColor="#9CA3AF"
               value={name}
-              onChangeText={(t) => {
-                setName(t);
-                setError("");
-              }}
+              onChangeText={setName}
               autoCapitalize="words"
               autoFocus
             />
-            {error && (
+            {errors.name && (
               <Text className="text-red-500 text-sm mt-1 ml-1 font-medium">
-                {error}
+                {errors.name}
               </Text>
             )}
+          </View>
+
+          {/* Monitoring Thresholds */}
+          <View className="mb-6">
+            <View className="flex-row items-center mb-3 ml-1">
+              <Activity size={16} color="#4F46E5" />
+              <Text className="text-gray-700 font-semibold ml-2">
+                Monitoring Thresholds
+              </Text>
+            </View>
+            <Text className="text-gray-500 text-xs mb-3 ml-1">
+              Leave blank to keep at 0. Used to flag vendors whose bookings
+              exceed these counts.
+            </Text>
+
+            <View className="flex-row flex-wrap" style={{ gap: 12 }}>
+              {(
+                [
+                  {
+                    key: "single",
+                    label: "Single Digit",
+                    value: single,
+                    set: setSingle,
+                  },
+                  {
+                    key: "double",
+                    label: "Double Digit",
+                    value: double,
+                    set: setDouble,
+                  },
+                  {
+                    key: "super",
+                    label: "Triple Super",
+                    value: superCount,
+                    set: setSuperCount,
+                  },
+                  {
+                    key: "box",
+                    label: "Triple Box",
+                    value: box,
+                    set: setBox,
+                  },
+                ] as const
+              ).map((f) => (
+                <View
+                  key={f.key}
+                  style={{ width: "47%", flexGrow: 1 }}
+                >
+                  <Text className="text-gray-500 text-xs font-semibold mb-1.5 ml-1">
+                    {f.label}
+                  </Text>
+                  <TextInput
+                    className={`border-2 rounded-xl px-4 py-3 bg-white text-gray-800 font-medium ${
+                      errors[f.key] ? "border-red-300 bg-red-50" : "border-gray-200"
+                    }`}
+                    placeholder="0"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="numeric"
+                    value={f.value}
+                    onChangeText={(t) => f.set(t.replace(/[^0-9]/g, ""))}
+                  />
+                  {errors[f.key] && (
+                    <Text className="text-red-500 text-xs mt-1 ml-1">
+                      {errors[f.key]}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
           </View>
 
           <TouchableOpacity
@@ -216,7 +323,7 @@ export default function VendorsScreen() {
     v.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleCreate = (data: { name: string }) => {
+  const handleCreate = (data: VendorFormData) => {
     setSubmitting(true);
     createVendor(data, {
       onSuccess: (newVendor) => {
@@ -238,7 +345,7 @@ export default function VendorsScreen() {
     });
   };
 
-  const handleEdit = (data: { name: string }) => {
+  const handleEdit = (data: VendorFormData) => {
     if (!editData) return;
     setSubmitting(true);
     editVendor(
