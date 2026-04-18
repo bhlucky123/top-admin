@@ -135,31 +135,29 @@ function PickerModal<T extends { id: number; name: string }>({
   );
 }
 
-const COLS = {
-  vendor: 140,
-  draw: 140,
-  date: 110,
-  number: 90,
-  type: 110,
-  subType: 90,
-  count: 90,
+const COL_FLEX = {
+  vendor: 3,
+  draw: 3,
+  number: 2,
+  count: 2,
 };
-const TABLE_WIDTH =
-  COLS.vendor + COLS.draw + COLS.date + COLS.number + COLS.type + COLS.subType + COLS.count;
 
 function TableHeader() {
   return (
     <View style={tableStyles.headerRow}>
-      <Text style={[tableStyles.headerCell, { width: COLS.vendor }]}>Vendor</Text>
-      <Text style={[tableStyles.headerCell, { width: COLS.draw }]}>Draw</Text>
-      <Text style={[tableStyles.headerCell, { width: COLS.date }]}>Date</Text>
-      <Text style={[tableStyles.headerCell, { width: COLS.number }]}>Number</Text>
-      <Text style={[tableStyles.headerCell, { width: COLS.type }]}>Type</Text>
-      <Text style={[tableStyles.headerCell, { width: COLS.subType }]}>Sub-type</Text>
+      <Text style={[tableStyles.headerCell, { flex: COL_FLEX.vendor }]}>
+        Vendor
+      </Text>
+      <Text style={[tableStyles.headerCell, { flex: COL_FLEX.draw }]}>
+        Draw
+      </Text>
+      <Text style={[tableStyles.headerCell, { flex: COL_FLEX.number }]}>
+        Number
+      </Text>
       <Text
         style={[
           tableStyles.headerCell,
-          { width: COLS.count, textAlign: "right" },
+          { flex: COL_FLEX.count, textAlign: "right" },
         ]}
       >
         Extra
@@ -182,32 +180,33 @@ function TableRow({
         { backgroundColor: even ? "#ffffff" : "#f8fafc" },
       ]}
     >
-      <Text style={[tableStyles.cell, { width: COLS.vendor }]} numberOfLines={1}>
+      <Text
+        style={[tableStyles.cell, { flex: COL_FLEX.vendor }]}
+        numberOfLines={1}
+      >
         {item.vendor_name || `#${item.vendor}`}
       </Text>
-      <Text style={[tableStyles.cell, { width: COLS.draw }]} numberOfLines={1}>
+      <Text
+        style={[tableStyles.cell, { flex: COL_FLEX.draw }]}
+        numberOfLines={1}
+      >
         {item.draw_name || `#${item.draw_session}`}
       </Text>
-      <Text style={[tableStyles.cell, { width: COLS.date }]} numberOfLines={1}>
-        {item.session_date}
-      </Text>
       <Text
-        style={[tableStyles.cell, tableStyles.cellBold, { width: COLS.number }]}
+        style={[
+          tableStyles.cell,
+          tableStyles.cellBold,
+          { flex: COL_FLEX.number },
+        ]}
         numberOfLines={1}
       >
         {item.number}
-      </Text>
-      <Text style={[tableStyles.cell, { width: COLS.type }]} numberOfLines={1}>
-        {TYPE_LABELS[item.type]}
-      </Text>
-      <Text style={[tableStyles.cell, { width: COLS.subType }]} numberOfLines={1}>
-        {SUB_TYPE_LABELS[item.sub_type]}
       </Text>
       <Text
         style={[
           tableStyles.cell,
           tableStyles.cellCount,
-          { width: COLS.count },
+          { flex: COL_FLEX.count },
         ]}
       >
         {item.count}
@@ -224,9 +223,9 @@ const tableStyles = StyleSheet.create({
     borderBottomColor: "#C7D2FE",
   },
   headerCell: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    fontSize: 11,
     fontWeight: "700",
     color: "#3730A3",
     textTransform: "uppercase",
@@ -238,14 +237,14 @@ const tableStyles = StyleSheet.create({
     borderBottomColor: "#E5E7EB",
   },
   cell: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 13,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    fontSize: 12,
     color: "#1f2937",
   },
   cellBold: {
     fontWeight: "700",
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   cellCount: {
     fontWeight: "700",
@@ -542,29 +541,24 @@ export default function ExtraCountsScreen() {
           </Text>
         </ScrollView>
       ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator
-          contentContainerStyle={{ paddingBottom: 100 }}
-        >
-          <View style={{ width: TABLE_WIDTH }}>
-            <TableHeader />
-            <ScrollView
-              refreshControl={
-                <RefreshControl
-                  refreshing={isFetching}
-                  onRefresh={refetch}
-                  colors={["#4F46E5"]}
-                  tintColor="#4F46E5"
-                />
-              }
-            >
-              {items.map((item, index) => (
-                <TableRow key={item.id} item={item} even={index % 2 === 0} />
-              ))}
-            </ScrollView>
-          </View>
-        </ScrollView>
+        <View style={{ flex: 1 }}>
+          <TableHeader />
+          <ScrollView
+            contentContainerStyle={{ paddingBottom: 100 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={isFetching}
+                onRefresh={refetch}
+                colors={["#4F46E5"]}
+                tintColor="#4F46E5"
+              />
+            }
+          >
+            {items.map((item, index) => (
+              <TableRow key={item.id} item={item} even={index % 2 === 0} />
+            ))}
+          </ScrollView>
+        </View>
       )}
 
       <PickerModal
