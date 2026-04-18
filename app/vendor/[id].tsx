@@ -1,10 +1,18 @@
 import useVendorDraw, { VendorDraw } from "@/hooks/use-vendor-draw";
 import useVendorFeature, { VendorFeature } from "@/hooks/use-vendor-feature";
 import { Admin } from "@/hooks/use-staff";
+import { Vendor } from "@/hooks/use-vendor";
+import {
+  COUNT_TYPE_LABELS,
+  MonitoringCountType,
+  MonitoringExtraCount,
+} from "@/hooks/use-monitoring-extra-count";
 import api from "@/utils/axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
+  Activity,
+  AlertTriangle,
   Building2,
   Check,
   ChevronRight,
@@ -12,6 +20,7 @@ import {
   Shield,
   Ticket,
   Trash2,
+  TrendingUp,
   Users,
   X,
 } from "lucide-react-native";
@@ -101,6 +110,33 @@ export default function VendorDetailScreen() {
       api.get("/administrator/vendor-features/").then((r) => r.data),
   });
 
+  // Fetch this vendor (for monitoring thresholds)
+  const { data: vendorDetail } = useQuery<Vendor>({
+    queryKey: ["vendor", vendorId],
+    queryFn: () =>
+      api.get(`/administrator/vendors/${vendorId}/`).then((r) => r.data),
+  });
+
+  // Extra-count filter state
+  const [extraCountType, setExtraCountType] =
+    useState<MonitoringCountType | null>(null);
+
+  const {
+    data: extraCounts = [],
+    isLoading: extrasLoading,
+    refetch: refetchExtras,
+  } = useQuery<MonitoringExtraCount[]>({
+    queryKey: ["vendor-extras", vendorId, extraCountType],
+    queryFn: () => {
+      const params: Record<string, any> = { vendor__id: vendorId };
+      if (extraCountType) params.count_type = extraCountType;
+      return api
+        .get("/draw-monitoring/extra-count/", { params })
+        .then((r) => r.data);
+    },
+    retry: false,
+  });
+
   const { assignFeatures, isAssigningFeatures } = useVendorFeature();
   const { assignDraw, unassignDraw, isAssigning } = useVendorDraw();
 
@@ -168,7 +204,16 @@ export default function VendorDetailScreen() {
     refetchVD();
     refetchAdmins();
     refetchFeatures();
+    refetchExtras();
+    queryClient.invalidateQueries({ queryKey: ["vendor", vendorId] });
   };
+
+  const COUNT_TYPES: MonitoringCountType[] = [
+    "single_digit",
+    "double_digit",
+    "triple_digit_super",
+    "triple_digit_box",
+  ];
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -438,6 +483,198 @@ export default function VendorDetailScreen() {
                   </View>
                 </View>
               ))}
+            </View>
+          )}
+        </View>
+
+        {/* Monitoring Thresholds */}
+        <View className="mx-5 mt-6">
+          <View className="flex-row items-center justify-between mb-3">
+            <Text className="text-lg font-bold text-gray-800">
+              Monitoring Thresholds
+            </Text>
+          </View>
+          <View className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+            <View className="flex-row flex-wrap gap-3">
+              {[
+                {
+                  label: "Single Digit",
+                  value: vendorDetail?.monitoring_single_digit_count,
+                },
+                {
+                  label: "Double Digit",
+                  value: vendorDetail?.monitoring_double_digit_count,
+                },
+                {
+                  label: "Triple Super",
+                  value: vendorDetail?.monitoring_triple_digit_super_count,
+                },
+                {
+                  label: "Triple Box",
+                  value: vendorDetail?.monitoring_triple_digit_box_count,
+                },
+              ].map((item) => (
+                <View
+                  key={item.label}
+                  className="bg-gray-50 px-3 py-2 rounded-lg"
+                  style={{ width: "47%" }}
+                >
+                  <Text className="text-gray-400 text-xs">{item.label}</Text>
+                  <Text className="text-gray-800 font-bold text-sm">
+                    {item.value ?? 0}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
+
+        {/* Extra Counts */}
+        <View className="mx-5 mt-6">
+          <View className="flex-row items-center justify-between mb-3">
+            <Text className="text-lg font-bold text-gray-800">
+              Extra Counts
+            </Text>
+            <View className="bg-indigo-50 px-2.5 py-1 rounded-md">
+              <Text className="text-indigo-600 text-xs font-bold">
+                {extraCounts.length}
+              </Text>
+            </View>
+          </View>
+
+          <View className="flex-row flex-wrap gap-2 mb-3">
+            <TouchableOpacity
+              onPress={() => setExtraCountType(null)}
+              className={`px-3 py-1.5 rounded-lg border ${
+                !extraCountType
+                  ? "bg-indigo-50 border-indigo-300"
+                  : "bg-white border-gray-200"
+              }`}
+            >
+              <Text
+                className={`text-xs font-semibold ${
+                  !extraCountType ? "text-indigo-700" : "text-gray-600"
+                }`}
+              >
+                All
+              </Text>
+            </TouchableOpacity>
+            {COUNT_TYPES.map((ct) => {
+              const active = extraCountType === ct;
+              return (
+                <TouchableOpacity
+                  key={ct}
+                  onPress={() => setExtraCountType(ct)}
+                  className={`px-3 py-1.5 rounded-lg border ${
+                    active
+                      ? "bg-indigo-50 border-indigo-300"
+                      : "bg-white border-gray-200"
+                  }`}
+                >
+                  <Text
+                    className={`text-xs font-semibold ${
+                      active ? "text-indigo-700" : "text-gray-600"
+                    }`}
+                  >
+                    {COUNT_TYPE_LABELS[ct]}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {extrasLoading ? (
+            <View className="bg-white rounded-2xl p-6 items-center">
+              <ActivityIndicator size="small" color="#4F46E5" />
+            </View>
+          ) : extraCounts.length === 0 ? (
+            <View className="bg-white rounded-2xl p-6 items-center border border-gray-100">
+              <Activity size={32} color="#D1D5DB" />
+              <Text className="text-gray-400 mt-2 text-sm">
+                No extra-count records
+              </Text>
+            </View>
+          ) : (
+            <View className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              {extraCounts.map((ec, index) => {
+                const over = ec.extra_count > 0;
+                return (
+                  <View
+                    key={ec.id}
+                    className={`px-5 py-4 ${
+                      index < extraCounts.length - 1
+                        ? "border-b border-gray-100"
+                        : ""
+                    }`}
+                  >
+                    <View className="flex-row items-center justify-between mb-2">
+                      <View className="flex-row items-center flex-1">
+                        <View
+                          className="w-9 h-9 rounded-lg items-center justify-center mr-3"
+                          style={{
+                            backgroundColor: over ? "#FEE2E2" : "#DCFCE7",
+                          }}
+                        >
+                          {over ? (
+                            <AlertTriangle size={16} color="#DC2626" />
+                          ) : (
+                            <TrendingUp size={16} color="#16A34A" />
+                          )}
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-gray-800 font-semibold text-sm">
+                            {ec.draw_name || `Draw #${ec.draw_session}`}
+                          </Text>
+                          <Text className="text-gray-400 text-xs mt-0.5">
+                            {ec.session_date}
+                          </Text>
+                        </View>
+                      </View>
+                      <View
+                        className="px-2 py-0.5 rounded-md"
+                        style={{
+                          backgroundColor: over ? "#FEE2E2" : "#F1F5F9",
+                        }}
+                      >
+                        <Text
+                          className="text-xs font-semibold"
+                          style={{ color: over ? "#B91C1C" : "#475569" }}
+                        >
+                          {COUNT_TYPE_LABELS[ec.count_type]}
+                        </Text>
+                      </View>
+                    </View>
+                    <View className="flex-row gap-2">
+                      <View className="bg-gray-50 px-3 py-1.5 rounded-md flex-1">
+                        <Text className="text-gray-400 text-xs">Threshold</Text>
+                        <Text className="text-gray-800 font-bold text-sm">
+                          {ec.monitoring_count}
+                        </Text>
+                      </View>
+                      <View className="bg-gray-50 px-3 py-1.5 rounded-md flex-1">
+                        <Text className="text-gray-400 text-xs">Booked</Text>
+                        <Text className="text-gray-800 font-bold text-sm">
+                          {ec.total_booked_count}
+                        </Text>
+                      </View>
+                      <View
+                        className="px-3 py-1.5 rounded-md flex-1"
+                        style={{
+                          backgroundColor: over ? "#FEE2E2" : "#F3F4F6",
+                        }}
+                      >
+                        <Text className="text-gray-400 text-xs">Extra</Text>
+                        <Text
+                          className="font-bold text-sm"
+                          style={{ color: over ? "#B91C1C" : "#1F2937" }}
+                        >
+                          {ec.extra_count}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
             </View>
           )}
         </View>
