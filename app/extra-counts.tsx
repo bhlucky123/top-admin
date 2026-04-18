@@ -16,7 +16,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   Activity,
-  AlertTriangle,
   Building2,
   Calendar,
   ChevronDown,
@@ -32,6 +31,7 @@ import {
   Modal,
   Platform,
   RefreshControl,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -135,72 +135,124 @@ function PickerModal<T extends { id: number; name: string }>({
   );
 }
 
-function ExtraCountRow({ item }: { item: MonitoringExtraCount }) {
-  return (
-    <View className="bg-white mx-4 mb-3 rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-      <View className="h-1.5" style={{ backgroundColor: "#F43F5E" }} />
-      <View className="p-5">
-        <View className="flex-row items-center justify-between mb-3">
-          <View className="flex-row items-center flex-1">
-            <View
-              className="w-10 h-10 rounded-xl items-center justify-center mr-3"
-              style={{ backgroundColor: "#FEE2E2" }}
-            >
-              <AlertTriangle size={18} color="#DC2626" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-base font-bold text-gray-800">
-                {item.vendor_name || `Vendor #${item.vendor}`}
-              </Text>
-              <Text className="text-xs text-gray-500 mt-0.5">
-                {item.draw_name || `Draw #${item.draw_session}`} · {item.session_date}
-              </Text>
-            </View>
-          </View>
-          <View className="flex-row gap-1.5">
-            <View
-              className="px-2.5 py-1 rounded-md"
-              style={{ backgroundColor: "#EEF2FF" }}
-            >
-              <Text
-                className="text-xs font-semibold"
-                style={{ color: "#4338CA" }}
-              >
-                {TYPE_LABELS[item.type]}
-              </Text>
-            </View>
-            <View
-              className="px-2.5 py-1 rounded-md"
-              style={{ backgroundColor: "#FEE2E2" }}
-            >
-              <Text
-                className="text-xs font-semibold"
-                style={{ color: "#B91C1C" }}
-              >
-                {SUB_TYPE_LABELS[item.sub_type]}
-              </Text>
-            </View>
-          </View>
-        </View>
+const COLS = {
+  vendor: 140,
+  draw: 140,
+  date: 110,
+  number: 90,
+  type: 110,
+  subType: 90,
+  count: 90,
+};
+const TABLE_WIDTH =
+  COLS.vendor + COLS.draw + COLS.date + COLS.number + COLS.type + COLS.subType + COLS.count;
 
-        <View className="flex-row items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
-          <View className="flex-row items-center">
-            <Text className="text-gray-400 text-xs mr-2">Number</Text>
-            <Text className="text-gray-900 font-bold text-xl tracking-wider">
-              {item.number}
-            </Text>
-          </View>
-          <View className="items-end">
-            <Text className="text-gray-400 text-xs">Extra Count</Text>
-            <Text className="text-red-600 font-bold text-lg">
-              ×{item.count}
-            </Text>
-          </View>
-        </View>
-      </View>
+function TableHeader() {
+  return (
+    <View style={tableStyles.headerRow}>
+      <Text style={[tableStyles.headerCell, { width: COLS.vendor }]}>Vendor</Text>
+      <Text style={[tableStyles.headerCell, { width: COLS.draw }]}>Draw</Text>
+      <Text style={[tableStyles.headerCell, { width: COLS.date }]}>Date</Text>
+      <Text style={[tableStyles.headerCell, { width: COLS.number }]}>Number</Text>
+      <Text style={[tableStyles.headerCell, { width: COLS.type }]}>Type</Text>
+      <Text style={[tableStyles.headerCell, { width: COLS.subType }]}>Sub-type</Text>
+      <Text
+        style={[
+          tableStyles.headerCell,
+          { width: COLS.count, textAlign: "right" },
+        ]}
+      >
+        Extra
+      </Text>
     </View>
   );
 }
+
+function TableRow({
+  item,
+  even,
+}: {
+  item: MonitoringExtraCount;
+  even: boolean;
+}) {
+  return (
+    <View
+      style={[
+        tableStyles.row,
+        { backgroundColor: even ? "#ffffff" : "#f8fafc" },
+      ]}
+    >
+      <Text style={[tableStyles.cell, { width: COLS.vendor }]} numberOfLines={1}>
+        {item.vendor_name || `#${item.vendor}`}
+      </Text>
+      <Text style={[tableStyles.cell, { width: COLS.draw }]} numberOfLines={1}>
+        {item.draw_name || `#${item.draw_session}`}
+      </Text>
+      <Text style={[tableStyles.cell, { width: COLS.date }]} numberOfLines={1}>
+        {item.session_date}
+      </Text>
+      <Text
+        style={[tableStyles.cell, tableStyles.cellBold, { width: COLS.number }]}
+        numberOfLines={1}
+      >
+        {item.number}
+      </Text>
+      <Text style={[tableStyles.cell, { width: COLS.type }]} numberOfLines={1}>
+        {TYPE_LABELS[item.type]}
+      </Text>
+      <Text style={[tableStyles.cell, { width: COLS.subType }]} numberOfLines={1}>
+        {SUB_TYPE_LABELS[item.sub_type]}
+      </Text>
+      <Text
+        style={[
+          tableStyles.cell,
+          tableStyles.cellCount,
+          { width: COLS.count },
+        ]}
+      >
+        {item.count}
+      </Text>
+    </View>
+  );
+}
+
+const tableStyles = StyleSheet.create({
+  headerRow: {
+    flexDirection: "row",
+    backgroundColor: "#EEF2FF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#C7D2FE",
+  },
+  headerCell: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#3730A3",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  row: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  cell: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 13,
+    color: "#1f2937",
+  },
+  cellBold: {
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  cellCount: {
+    fontWeight: "700",
+    color: "#B91C1C",
+    textAlign: "right",
+  },
+});
 
 export default function ExtraCountsScreen() {
   const router = useRouter();
@@ -470,12 +522,9 @@ export default function ExtraCountsScreen() {
           <ActivityIndicator size="large" color="#4F46E5" />
           <Text className="mt-4 text-gray-500">Loading...</Text>
         </View>
-      ) : (
-        <FlatList
-          data={items}
-          keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={{ paddingBottom: 100, paddingTop: 12 }}
-          renderItem={({ item }) => <ExtraCountRow item={item} />}
+      ) : items.length === 0 ? (
+        <ScrollView
+          contentContainerStyle={{ flex: 1, alignItems: "center", justifyContent: "center" }}
           refreshControl={
             <RefreshControl
               refreshing={isFetching}
@@ -484,17 +533,38 @@ export default function ExtraCountsScreen() {
               tintColor="#4F46E5"
             />
           }
-          ListEmptyComponent={
-            <View className="flex-1 items-center mt-20">
-              <Activity size={48} color="#D1D5DB" />
-              <Text className="text-gray-400 text-lg mt-4">
-                {hasFilters
-                  ? "No records match these filters"
-                  : "No extra-count records"}
-              </Text>
-            </View>
-          }
-        />
+        >
+          <Activity size={48} color="#D1D5DB" />
+          <Text className="text-gray-400 text-lg mt-4">
+            {hasFilters
+              ? "No records match these filters"
+              : "No extra-count records"}
+          </Text>
+        </ScrollView>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator
+          contentContainerStyle={{ paddingBottom: 100 }}
+        >
+          <View style={{ width: TABLE_WIDTH }}>
+            <TableHeader />
+            <ScrollView
+              refreshControl={
+                <RefreshControl
+                  refreshing={isFetching}
+                  onRefresh={refetch}
+                  colors={["#4F46E5"]}
+                  tintColor="#4F46E5"
+                />
+              }
+            >
+              {items.map((item, index) => (
+                <TableRow key={item.id} item={item} even={index % 2 === 0} />
+              ))}
+            </ScrollView>
+          </View>
+        </ScrollView>
       )}
 
       <PickerModal
