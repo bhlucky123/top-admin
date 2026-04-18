@@ -1,11 +1,9 @@
-import useMonitoringConfig, { MonitoringConfig } from "@/hooks/use-monitoring-config";
+import useVendor, { Vendor } from "@/hooks/use-vendor";
 import {
   COUNT_TYPE_LABELS,
   MonitoringCountType,
   MonitoringExtraCount,
 } from "@/hooks/use-monitoring-extra-count";
-import { Draw } from "@/hooks/use-draw";
-import { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
 import { AntDesign } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -13,14 +11,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
   AlertTriangle,
+  Building2,
   Calendar,
   ChevronDown,
-  Plus,
   Search,
   SlidersHorizontal,
-  Ticket,
   TrendingUp,
-  Building2,
   X,
 } from "lucide-react-native";
 import { useMemo, useState } from "react";
@@ -41,7 +37,7 @@ import {
   View,
 } from "react-native";
 
-type Tab = "configs" | "extras";
+type Tab = "thresholds" | "extras";
 
 const COUNT_TYPES: MonitoringCountType[] = [
   "single_digit",
@@ -50,7 +46,7 @@ const COUNT_TYPES: MonitoringCountType[] = [
   "triple_digit_box",
 ];
 
-// --- Picker Modal (generic vendor/draw selector) ---
+// --- Picker Modal ---
 function PickerModal<T extends { id: number; name: string }>({
   visible,
   title,
@@ -140,61 +136,28 @@ function PickerModal<T extends { id: number; name: string }>({
   );
 }
 
-// --- Config Form ---
-function ConfigForm({
-  initialData,
-  vendors,
-  draws,
+// --- Threshold Form (edits vendor monitoring fields via PATCH /vendors/{id}/) ---
+function ThresholdForm({
+  vendor,
   onClose,
 }: {
-  initialData: MonitoringConfig | null;
-  vendors: Vendor[];
-  draws: (Draw & { id: number })[];
+  vendor: Vendor;
   onClose: () => void;
 }) {
-  const isEdit = !!initialData;
-  const { createConfig, updateConfig } = useMonitoringConfig();
+  const { editVendorAsync, isEditing } = useVendor();
   const queryClient = useQueryClient();
 
-  const [form, setForm] = useState<{
-    vendor: number | null;
-    draw: number | null;
-    single_digit_count: string;
-    double_digit_count: string;
-    triple_digit_super_count: string;
-    triple_digit_box_count: string;
-  }>({
-    vendor: initialData?.vendor ?? null,
-    draw: initialData?.draw ?? null,
-    single_digit_count: initialData ? String(initialData.single_digit_count) : "",
-    double_digit_count: initialData ? String(initialData.double_digit_count) : "",
-    triple_digit_super_count: initialData
-      ? String(initialData.triple_digit_super_count)
-      : "",
-    triple_digit_box_count: initialData
-      ? String(initialData.triple_digit_box_count)
-      : "",
+  const [form, setForm] = useState({
+    single: String(vendor.monitoring_single_digit_count ?? 0),
+    double: String(vendor.monitoring_double_digit_count ?? 0),
+    super: String(vendor.monitoring_triple_digit_super_count ?? 0),
+    box: String(vendor.monitoring_triple_digit_box_count ?? 0),
   });
   const [errors, setErrors] = useState<{ [k: string]: string }>({});
-  const [submitting, setSubmitting] = useState(false);
-  const [showVendorPicker, setShowVendorPicker] = useState(false);
-  const [showDrawPicker, setShowDrawPicker] = useState(false);
-
-  const vendorName = vendors.find((v) => v.id === form.vendor)?.name;
-  const drawName = draws.find((d) => d.id === form.draw)?.name;
 
   const validate = () => {
     const e: { [k: string]: string } = {};
-    if (!form.vendor) e.vendor = "Vendor is required";
-    if (!form.draw) e.draw = "Draw is required";
-    (
-      [
-        "single_digit_count",
-        "double_digit_count",
-        "triple_digit_super_count",
-        "triple_digit_box_count",
-      ] as const
-    ).forEach((k) => {
+    (["single", "double", "super", "box"] as const).forEach((k) => {
       const v = form[k];
       if (v === "" || isNaN(Number(v)) || Number(v) < 0) {
         e[k] = "Enter a valid count";
@@ -206,33 +169,23 @@ function ConfigForm({
   };
 
   const handleSubmit = async () => {
-    if (submitting) return;
+    if (isEditing) return;
     if (!validate()) return;
-    setSubmitting(true);
-
-    const payload = {
-      vendor: form.vendor!,
-      draw: form.draw!,
-      single_digit_count: Number(form.single_digit_count),
-      double_digit_count: Number(form.double_digit_count),
-      triple_digit_super_count: Number(form.triple_digit_super_count),
-      triple_digit_box_count: Number(form.triple_digit_box_count),
-    };
 
     try {
-      if (isEdit) {
-        await updateConfig.mutateAsync({ id: initialData!.id, ...payload });
-      } else {
-        await createConfig.mutateAsync(payload);
-      }
-      await queryClient.invalidateQueries({ queryKey: ["monitoring-configs"] });
+      await editVendorAsync({
+        id: vendor.id,
+        monitoring_single_digit_count: Number(form.single),
+        monitoring_double_digit_count: Number(form.double),
+        monitoring_triple_digit_super_count: Number(form.super),
+        monitoring_triple_digit_box_count: Number(form.box),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["vendors"] });
       onClose();
     } catch (err: any) {
       const msg =
         typeof err === "string" ? err : err?.message || "Something went wrong";
       Alert.alert("Error", typeof msg === "string" ? msg : JSON.stringify(msg));
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -249,59 +202,19 @@ function ConfigForm({
           <Text style={styles.backBtnText}>Back</Text>
         </TouchableOpacity>
 
-        <Text style={styles.formTitle}>
-          {isEdit ? "Edit" : "Create"} Monitoring Config
-        </Text>
-
-        {/* Vendor */}
-        <View style={{ marginBottom: 20 }}>
-          <Text style={styles.formLabel}>Vendor</Text>
-          <TouchableOpacity
-            style={styles.selectBtn}
-            onPress={() => setShowVendorPicker(true)}
-            disabled={isEdit}
-            activeOpacity={0.85}
-          >
-            <Text
-              style={[
-                styles.selectBtnText,
-                !vendorName && { color: "#9ca3af" },
-              ]}
-            >
-              {vendorName || "Select a vendor"}
-            </Text>
-            <ChevronDown size={18} color="#6366f1" />
-          </TouchableOpacity>
-          {errors.vendor && <Text style={styles.errorText}>{errors.vendor}</Text>}
+        <Text style={styles.formTitle}>Edit Thresholds</Text>
+        <View style={styles.vendorBadge}>
+          <Building2 size={16} color="#4338CA" />
+          <Text style={styles.vendorBadgeText}>{vendor.name}</Text>
         </View>
 
-        {/* Draw */}
-        <View style={{ marginBottom: 20 }}>
-          <Text style={styles.formLabel}>Draw</Text>
-          <TouchableOpacity
-            style={styles.selectBtn}
-            onPress={() => setShowDrawPicker(true)}
-            disabled={isEdit}
-            activeOpacity={0.85}
-          >
-            <Text
-              style={[styles.selectBtnText, !drawName && { color: "#9ca3af" }]}
-            >
-              {drawName || "Select a draw"}
-            </Text>
-            <ChevronDown size={18} color="#6366f1" />
-          </TouchableOpacity>
-          {errors.draw && <Text style={styles.errorText}>{errors.draw}</Text>}
-        </View>
-
-        {/* Counts */}
         <View style={styles.countsGrid}>
           {(
             [
-              { key: "single_digit_count", label: "Single Digit" },
-              { key: "double_digit_count", label: "Double Digit" },
-              { key: "triple_digit_super_count", label: "Triple Super" },
-              { key: "triple_digit_box_count", label: "Triple Box" },
+              { key: "single", label: "Single Digit" },
+              { key: "double", label: "Double Digit" },
+              { key: "super", label: "Triple Super" },
+              { key: "box", label: "Triple Box" },
             ] as const
           ).map((f) => (
             <View key={f.key} style={styles.countCol}>
@@ -329,53 +242,34 @@ function ConfigForm({
         <TouchableOpacity
           onPress={handleSubmit}
           activeOpacity={0.85}
-          disabled={submitting}
-          style={[styles.submitBtn, submitting && { opacity: 0.7 }]}
+          disabled={isEditing}
+          style={[styles.submitBtn, isEditing && { opacity: 0.7 }]}
         >
           <Text style={styles.submitBtnText}>
-            {submitting
-              ? isEdit
-                ? "Updating..."
-                : "Creating..."
-              : (isEdit ? "Update" : "Create") + " Config"}
+            {isEditing ? "Saving..." : "Save Thresholds"}
           </Text>
         </TouchableOpacity>
       </ScrollView>
-
-      <PickerModal
-        visible={showVendorPicker}
-        title="Select Vendor"
-        items={vendors}
-        selectedId={form.vendor}
-        onSelect={(v) =>
-          setForm((prev) => ({ ...prev, vendor: v ? v.id : null }))
-        }
-        onClose={() => setShowVendorPicker(false)}
-      />
-      <PickerModal
-        visible={showDrawPicker}
-        title="Select Draw"
-        items={draws}
-        selectedId={form.draw}
-        onSelect={(d) =>
-          setForm((prev) => ({ ...prev, draw: d ? d.id : null }))
-        }
-        onClose={() => setShowDrawPicker(false)}
-      />
     </KeyboardAvoidingView>
   );
 }
 
-// --- Config Card ---
-function ConfigCard({
+// --- Threshold Card ---
+function ThresholdCard({
   item,
   onEdit,
-  onDelete,
 }: {
-  item: MonitoringConfig;
+  item: Vendor;
   onEdit: () => void;
-  onDelete: () => void;
 }) {
+  const values = [
+    item.monitoring_single_digit_count,
+    item.monitoring_double_digit_count,
+    item.monitoring_triple_digit_super_count,
+    item.monitoring_triple_digit_box_count,
+  ];
+  const hasAny = values.some((v) => (v ?? 0) > 0);
+
   return (
     <View className="bg-white mx-4 mb-3 rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
       <View className="h-1.5" style={{ backgroundColor: "#6366F1" }} />
@@ -390,34 +284,39 @@ function ConfigCard({
             </View>
             <View className="flex-1">
               <Text className="text-base font-bold text-gray-800">
-                {item.vendor_name || `Vendor #${item.vendor}`}
+                {item.name}
               </Text>
               <Text className="text-xs text-gray-500 mt-0.5">
-                {item.draw_name || `Draw #${item.draw}`}
+                {item.is_active ? "Active" : "Inactive"}
+                {!hasAny ? " · no thresholds set" : ""}
               </Text>
             </View>
           </View>
-          <View className="flex-row gap-2">
-            <TouchableOpacity
-              onPress={onEdit}
-              className="px-3 py-1.5 bg-gray-100 rounded-lg"
-            >
-              <Text className="text-gray-700 text-sm font-medium">Edit</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={onDelete}
-              className="px-3 py-1.5 bg-red-50 rounded-lg"
-            >
-              <Text className="text-red-600 text-sm font-medium">Delete</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            onPress={onEdit}
+            className="px-3 py-1.5 bg-gray-100 rounded-lg"
+          >
+            <Text className="text-gray-700 text-sm font-medium">Edit</Text>
+          </TouchableOpacity>
         </View>
 
         <View className="flex-row flex-wrap gap-2">
-          <CountBadge label="Single" value={item.single_digit_count} />
-          <CountBadge label="Double" value={item.double_digit_count} />
-          <CountBadge label="Triple Super" value={item.triple_digit_super_count} />
-          <CountBadge label="Triple Box" value={item.triple_digit_box_count} />
+          <CountBadge
+            label="Single"
+            value={item.monitoring_single_digit_count ?? 0}
+          />
+          <CountBadge
+            label="Double"
+            value={item.monitoring_double_digit_count ?? 0}
+          />
+          <CountBadge
+            label="Triple Super"
+            value={item.monitoring_triple_digit_super_count ?? 0}
+          />
+          <CountBadge
+            label="Triple Box"
+            value={item.monitoring_triple_digit_box_count ?? 0}
+          />
         </View>
       </View>
     </View>
@@ -500,63 +399,35 @@ function ExtraCountCard({ item }: { item: MonitoringExtraCount }) {
 
 // --- Main Screen ---
 export default function MonitoringScreen() {
-  const queryClient = useQueryClient();
-  const [tab, setTab] = useState<Tab>("configs");
+  const [tab, setTab] = useState<Tab>("thresholds");
 
-  // Form state (configs)
-  const [showForm, setShowForm] = useState(false);
-  const [editData, setEditData] = useState<MonitoringConfig | null>(null);
+  // Edit target
+  const [editVendor, setEditVendor] = useState<Vendor | null>(null);
 
-  // Filter state — shared between tabs where applicable
+  // Filter state
+  const [search, setSearch] = useState("");
   const [filterVendor, setFilterVendor] = useState<number | null>(null);
-  const [filterDraw, setFilterDraw] = useState<number | null>(null);
   const [filterDate, setFilterDate] = useState<Date | null>(null);
   const [filterCountType, setFilterCountType] =
     useState<MonitoringCountType | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [showVendorPicker, setShowVendorPicker] = useState(false);
-  const [showDrawPicker, setShowDrawPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // Supporting data (vendors + draws)
-  const { data: vendors = [] } = useQuery<Vendor[]>({
+  // Vendors (also used for filter picker on extras tab)
+  const {
+    data: vendors = [],
+    isLoading: vendorsLoading,
+    isFetching: vendorsFetching,
+    isError: vendorsError,
+    refetch: refetchVendors,
+  } = useQuery<Vendor[]>({
     queryKey: ["vendors"],
     queryFn: () => api.get("/administrator/vendors/").then((r) => r.data),
     retry: false,
   });
 
-  const { data: draws = [] } = useQuery<(Draw & { id: number })[]>({
-    queryKey: ["draws"],
-    queryFn: () => api.get("/draw/").then((r) => r.data),
-    retry: false,
-  });
-
-  // Configs list
-  const configsKey = useMemo(
-    () => ["monitoring-configs", filterVendor, filterDraw],
-    [filterVendor, filterDraw]
-  );
-  const {
-    data: configs = [],
-    isLoading: configsLoading,
-    isFetching: configsFetching,
-    isError: configsError,
-    refetch: refetchConfigs,
-  } = useQuery<MonitoringConfig[]>({
-    queryKey: configsKey,
-    queryFn: () => {
-      const params: Record<string, any> = {};
-      if (filterVendor) params.vendor__id = filterVendor;
-      if (filterDraw) params.draw__id = filterDraw;
-      return api
-        .get("/draw-monitoring/config/", { params })
-        .then((r) => r.data);
-    },
-    enabled: tab === "configs",
-    retry: false,
-  });
-
-  // Extra counts list
+  // Extra counts
   const extrasKey = useMemo(
     () => ["monitoring-extras", filterVendor, filterDate, filterCountType],
     [filterVendor, filterDate, filterCountType]
@@ -585,86 +456,45 @@ export default function MonitoringScreen() {
     retry: false,
   });
 
-  const { deleteConfig } = useMonitoringConfig();
-
-  const handleDeleteConfig = (cfg: MonitoringConfig) => {
-    Alert.alert(
-      "Delete Config",
-      `Delete monitoring config for "${cfg.vendor_name || "vendor"}" / "${cfg.draw_name || "draw"}"?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () =>
-            deleteConfig.mutate(
-              { id: cfg.id },
-              {
-                onSuccess: () =>
-                  queryClient.invalidateQueries({
-                    queryKey: ["monitoring-configs"],
-                  }),
-              }
-            ),
-        },
-      ]
-    );
-  };
+  const filteredVendors = vendors.filter((v) =>
+    v.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   const clearFilters = () => {
     setFilterVendor(null);
-    setFilterDraw(null);
     setFilterDate(null);
     setFilterCountType(null);
   };
 
-  const hasFilters =
-    !!filterVendor || !!filterDraw || !!filterDate || !!filterCountType;
+  const hasFilters = !!filterVendor || !!filterDate || !!filterCountType;
 
-  if (showForm) {
+  if (editVendor) {
     return (
-      <ConfigForm
-        initialData={editData}
-        vendors={vendors}
-        draws={draws}
-        onClose={() => {
-          setShowForm(false);
-          setEditData(null);
-        }}
+      <ThresholdForm
+        vendor={editVendor}
+        onClose={() => setEditVendor(null)}
       />
     );
   }
 
-  const isLoading = tab === "configs" ? configsLoading : extrasLoading;
-  const isFetching = tab === "configs" ? configsFetching : extrasFetching;
-  const isError = tab === "configs" ? configsError : extrasError;
-  const refetch = tab === "configs" ? refetchConfigs : refetchExtras;
+  const isLoading = tab === "thresholds" ? vendorsLoading : extrasLoading;
+  const isFetching = tab === "thresholds" ? vendorsFetching : extrasFetching;
+  const isError = tab === "thresholds" ? vendorsError : extrasError;
+  const refetch = tab === "thresholds" ? refetchVendors : refetchExtras;
 
   return (
     <View className="flex-1 bg-gray-50">
       <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
 
-      {/* Header */}
       <View className="bg-white border-b border-gray-200 px-6 pt-14 pb-5">
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-2xl font-bold text-gray-900">Monitoring</Text>
-          {tab === "configs" && (
-            <TouchableOpacity
-              onPress={() => {
-                setEditData(null);
-                setShowForm(true);
-              }}
-              className="w-11 h-11 bg-indigo-600 rounded-full items-center justify-center shadow-md"
-            >
-              <Plus size={22} color="#fff" />
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* Segmented tabs */}
         <View className="flex-row bg-gray-100 rounded-xl p-1 mb-3">
           {([
-            { key: "configs", label: "Configs" },
+            { key: "thresholds", label: "Thresholds" },
             { key: "extras", label: "Extra Counts" },
           ] as { key: Tab; label: string }[]).map((t) => {
             const active = tab === t.key;
@@ -684,66 +514,59 @@ export default function MonitoringScreen() {
           })}
         </View>
 
-        {/* Filter row */}
-        <TouchableOpacity
-          onPress={() => setShowFilters((s) => !s)}
-          className="flex-row items-center justify-between bg-gray-100 rounded-xl px-4 py-2.5"
-        >
-          <View className="flex-row items-center">
-            <SlidersHorizontal size={16} color="#6366F1" />
-            <Text className="text-gray-800 font-medium ml-2">
-              Filters
-              {hasFilters ? (
-                <Text className="text-indigo-600"> · active</Text>
-              ) : null}
-            </Text>
-          </View>
-          <ChevronDown
-            size={16}
-            color="#6366F1"
-            style={{
-              transform: [{ rotate: showFilters ? "180deg" : "0deg" }],
-            }}
-          />
-        </TouchableOpacity>
-
-        {showFilters && (
-          <View className="mt-3 gap-2">
-            <FilterChip
-              icon={<Building2 size={14} color="#6366F1" />}
-              label="Vendor"
-              value={
-                filterVendor
-                  ? vendors.find((v) => v.id === filterVendor)?.name ?? "—"
-                  : "All"
-              }
-              onPress={() => setShowVendorPicker(true)}
-              active={!!filterVendor}
+        {tab === "thresholds" ? (
+          <View className="flex-row items-center bg-gray-100 rounded-xl px-4 py-2.5">
+            <Search size={18} color="#9CA3AF" />
+            <TextInput
+              placeholder="Search vendors..."
+              className="flex-1 ml-2 text-gray-800 text-base"
+              value={search}
+              onChangeText={setSearch}
+              placeholderTextColor="#9ca3af"
             />
-
-            {tab === "configs" && (
-              <FilterChip
-                icon={<Ticket size={14} color="#6366F1" />}
-                label="Draw"
-                value={
-                  filterDraw
-                    ? draws.find((d) => d.id === filterDraw)?.name ?? "—"
-                    : "All"
-                }
-                onPress={() => setShowDrawPicker(true)}
-                active={!!filterDraw}
+          </View>
+        ) : (
+          <>
+            <TouchableOpacity
+              onPress={() => setShowFilters((s) => !s)}
+              className="flex-row items-center justify-between bg-gray-100 rounded-xl px-4 py-2.5"
+            >
+              <View className="flex-row items-center">
+                <SlidersHorizontal size={16} color="#6366F1" />
+                <Text className="text-gray-800 font-medium ml-2">
+                  Filters
+                  {hasFilters ? (
+                    <Text className="text-indigo-600"> · active</Text>
+                  ) : null}
+                </Text>
+              </View>
+              <ChevronDown
+                size={16}
+                color="#6366F1"
+                style={{
+                  transform: [{ rotate: showFilters ? "180deg" : "0deg" }],
+                }}
               />
-            )}
+            </TouchableOpacity>
 
-            {tab === "extras" && (
-              <>
+            {showFilters && (
+              <View className="mt-3 gap-2">
+                <FilterChip
+                  icon={<Building2 size={14} color="#6366F1" />}
+                  label="Vendor"
+                  value={
+                    filterVendor
+                      ? vendors.find((v) => v.id === filterVendor)?.name ?? "—"
+                      : "All"
+                  }
+                  onPress={() => setShowVendorPicker(true)}
+                  active={!!filterVendor}
+                />
                 <FilterChip
                   icon={<Calendar size={14} color="#6366F1" />}
                   label="Session Date"
                   value={
-                    filterDate
-                      ? filterDate.toISOString().split("T")[0]
-                      : "All"
+                    filterDate ? filterDate.toISOString().split("T")[0] : "All"
                   }
                   onPress={() => setShowDatePicker(true)}
                   active={!!filterDate}
@@ -774,20 +597,19 @@ export default function MonitoringScreen() {
                     );
                   })}
                 </View>
-              </>
+                {hasFilters && (
+                  <TouchableOpacity
+                    onPress={clearFilters}
+                    className="self-end mt-1 px-3 py-1.5"
+                  >
+                    <Text className="text-red-600 text-xs font-semibold">
+                      Clear filters
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
-
-            {hasFilters && (
-              <TouchableOpacity
-                onPress={clearFilters}
-                className="self-end mt-1 px-3 py-1.5"
-              >
-                <Text className="text-red-600 text-xs font-semibold">
-                  Clear filters
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          </>
         )}
       </View>
 
@@ -811,20 +633,13 @@ export default function MonitoringScreen() {
           <ActivityIndicator size="large" color="#4F46E5" />
           <Text className="mt-4 text-gray-500">Loading...</Text>
         </View>
-      ) : tab === "configs" ? (
+      ) : tab === "thresholds" ? (
         <FlatList
-          data={configs}
+          data={filteredVendors}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={{ paddingBottom: 100, paddingTop: 12 }}
           renderItem={({ item }) => (
-            <ConfigCard
-              item={item}
-              onEdit={() => {
-                setEditData(item);
-                setShowForm(true);
-              }}
-              onDelete={() => handleDeleteConfig(item)}
-            />
+            <ThresholdCard item={item} onEdit={() => setEditVendor(item)} />
           )}
           refreshControl={
             <RefreshControl
@@ -837,7 +652,9 @@ export default function MonitoringScreen() {
           ListEmptyComponent={
             <View className="flex-1 items-center mt-20">
               <Activity size={48} color="#D1D5DB" />
-              <Text className="text-gray-400 text-lg mt-4">No configs yet</Text>
+              <Text className="text-gray-400 text-lg mt-4">
+                {search ? "No vendors match your search" : "No vendors yet"}
+              </Text>
             </View>
           }
         />
@@ -866,7 +683,6 @@ export default function MonitoringScreen() {
         />
       )}
 
-      {/* Filter pickers */}
       <PickerModal
         visible={showVendorPicker}
         title="Filter by Vendor"
@@ -874,15 +690,6 @@ export default function MonitoringScreen() {
         selectedId={filterVendor}
         onSelect={(v) => setFilterVendor(v ? v.id : null)}
         onClose={() => setShowVendorPicker(false)}
-        allowClear
-      />
-      <PickerModal
-        visible={showDrawPicker}
-        title="Filter by Draw"
-        items={draws}
-        selectedId={filterDraw}
-        onSelect={(d) => setFilterDraw(d ? d.id : null)}
-        onClose={() => setShowDrawPicker(false)}
         allowClear
       />
       {showDatePicker && (
@@ -963,7 +770,23 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: "bold",
     color: "#1e293b",
-    marginBottom: 28,
+    marginBottom: 12,
+  },
+  vendorBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "#EEF2FF",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginBottom: 24,
+  },
+  vendorBadgeText: {
+    marginLeft: 8,
+    color: "#4338CA",
+    fontWeight: "600",
+    fontSize: 14,
   },
   formLabel: {
     fontSize: 14,
@@ -986,22 +809,6 @@ const styles = StyleSheet.create({
     color: "#dc2626",
     fontSize: 13,
     marginTop: 4,
-  },
-  selectBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#fff",
-    borderWidth: 1.5,
-    borderColor: "#e2e8f0",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  selectBtnText: {
-    fontSize: 15,
-    color: "#1e293b",
-    fontWeight: "500",
   },
   countsGrid: {
     flexDirection: "row",

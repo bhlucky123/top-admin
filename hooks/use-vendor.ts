@@ -6,10 +6,22 @@ export type Vendor = {
   name: string;
   is_active: boolean;
   feature_codenames?: string[];
+  monitoring_single_digit_count?: number;
+  monitoring_double_digit_count?: number;
+  monitoring_triple_digit_super_count?: number;
+  monitoring_triple_digit_box_count?: number;
 };
 
 type CreateVendorParams = { name: string; is_active?: boolean };
-type EditVendorParams = { id: number; name?: string; is_active?: boolean };
+type EditVendorParams = {
+  id: number;
+  name?: string;
+  is_active?: boolean;
+  monitoring_single_digit_count?: number;
+  monitoring_double_digit_count?: number;
+  monitoring_triple_digit_super_count?: number;
+  monitoring_triple_digit_box_count?: number;
+};
 type ToggleActiveParams = { id: number; is_active: boolean };
 
 const useVendor = () => {
