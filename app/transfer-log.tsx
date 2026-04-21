@@ -1,18 +1,15 @@
 import KeyboardAvoider from "@/components/keyboard-avoider";
-import { Draw } from "@/hooks/use-draw";
 import { MonitoringTransferLog } from "@/hooks/use-monitoring-actions";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SUB_TYPE_LABELS, TYPE_LABELS } from "@/hooks/use-monitoring-extra-count";
 import { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
 import { AntDesign } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   ArrowRight,
   Building2,
-  Calendar,
   ChevronDown,
   History,
   MoveLeft,
@@ -25,7 +22,6 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
-  Platform,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -267,15 +263,12 @@ export default function TransferLogScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [drawId, setDrawId] = useState<number | null>(null);
-  const [date, setDate] = useState<Date | null>(null);
-  const [fromVendorId, setFromVendorId] = useState<number | null>(null);
-  const [toVendorId, setToVendorId] = useState<number | null>(null);
+  const params = useLocalSearchParams<{ drawId?: string; drawName?: string }>();
+  const drawId = params.drawId ? Number(params.drawId) : null;
+  const drawNameFromParams = params.drawName || "";
 
-  const [showDrawPicker, setShowDrawPicker] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showFromPicker, setShowFromPicker] = useState(false);
-  const [showToPicker, setShowToPicker] = useState(false);
+  const [vendorId, setVendorId] = useState<number | null>(null);
+  const [showVendorPicker, setShowVendorPicker] = useState(false);
 
   const { data: vendors = [] } = useQuery<Vendor[]>({
     queryKey: ["vendors"],
@@ -283,21 +276,9 @@ export default function TransferLogScreen() {
     retry: false,
   });
 
-  const { data: draws = [] } = useQuery<(Draw & { id: number })[]>({
-    queryKey: ["draws-list"],
-    queryFn: () => api.get("/draw/list/").then((r) => r.data),
-    retry: false,
-  });
-
   const queryKey = useMemo(
-    () => [
-      "transfer-log",
-      drawId,
-      date?.toISOString().split("T")[0],
-      fromVendorId,
-      toVendorId,
-    ],
-    [drawId, date, fromVendorId, toVendorId]
+    () => ["transfer-log", drawId, vendorId],
+    [drawId, vendorId]
   );
 
   const {
@@ -309,14 +290,11 @@ export default function TransferLogScreen() {
   } = useQuery<MonitoringTransferLog[] | { results: MonitoringTransferLog[] }>({
     queryKey,
     queryFn: () => {
-      const params: Record<string, any> = {};
-      if (drawId) params.draw_session__draw__id = drawId;
-      if (date)
-        params.draw_session__session_date = date.toISOString().split("T")[0];
-      if (fromVendorId) params.from_vendor__id = fromVendorId;
-      if (toVendorId) params.to_vendor__id = toVendorId;
+      const q: Record<string, any> = {};
+      if (drawId) q.draw_session__draw__id = drawId;
+      if (vendorId) q.vendor__id = vendorId;
       return api
-        .get("/draw-monitoring/transfer-log/", { params })
+        .get("/draw-monitoring/transfer-log/", { params: q })
         .then((r) => r.data);
     },
     retry: false,
@@ -328,17 +306,12 @@ export default function TransferLogScreen() {
     return Array.isArray(maybeResults) ? maybeResults : [];
   }, [rawData]);
 
-  const drawName = draws.find((d) => d.id === drawId)?.name;
-  const fromName = vendors.find((v) => v.id === fromVendorId)?.name;
-  const toName = vendors.find((v) => v.id === toVendorId)?.name;
-  const hasFilters =
-    !!drawId || !!date || !!fromVendorId || !!toVendorId;
+  const drawName = drawNameFromParams || (drawId ? `Draw #${drawId}` : "");
+  const vendorName = vendors.find((v) => v.id === vendorId)?.name;
+  const hasFilters = !!vendorId;
 
   const clearAll = () => {
-    setDrawId(null);
-    setDate(null);
-    setFromVendorId(null);
-    setToVendorId(null);
+    setVendorId(null);
   };
 
   let totalCount = 0;
@@ -367,33 +340,26 @@ export default function TransferLogScreen() {
 
       {/* Filters */}
       <View className="bg-white px-6 pt-4 pb-5 border-b border-gray-100 gap-2">
-        <FilterRow
-          icon={<Ticket size={14} color="#6366F1" />}
-          label="Draw"
-          value={drawName || "All"}
-          active={!!drawId}
-          onPress={() => setShowDrawPicker(true)}
-        />
-        <FilterRow
-          icon={<Calendar size={14} color="#6366F1" />}
-          label="Date"
-          value={date ? date.toISOString().split("T")[0] : "All"}
-          active={!!date}
-          onPress={() => setShowDatePicker(true)}
-        />
-        <FilterRow
-          icon={<Building2 size={14} color="#6366F1" />}
-          label="From"
-          value={fromName || "All"}
-          active={!!fromVendorId}
-          onPress={() => setShowFromPicker(true)}
-        />
+        {drawId ? (
+          <View className="flex-row items-center bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2.5">
+            <Ticket size={14} color="#4338CA" />
+            <Text className="text-[10px] text-indigo-500 font-semibold uppercase ml-2 mr-1">
+              Draw
+            </Text>
+            <Text
+              className="text-indigo-800 font-bold text-sm flex-1"
+              numberOfLines={1}
+            >
+              {drawName}
+            </Text>
+          </View>
+        ) : null}
         <FilterRow
           icon={<Building2 size={14} color="#6366F1" />}
-          label="To"
-          value={toName || "All"}
-          active={!!toVendorId}
-          onPress={() => setShowToPicker(true)}
+          label="Vendor"
+          value={vendorName || "All"}
+          active={!!vendorId}
+          onPress={() => setShowVendorPicker(true)}
         />
 
         {hasFilters && (
@@ -484,46 +450,15 @@ export default function TransferLogScreen() {
       )}
 
       <PickerModal
-        visible={showDrawPicker}
-        title="Filter by Draw"
-        clearLabel="All draws"
-        searchPlaceholder="Search draws..."
-        items={draws}
-        selectedId={drawId}
-        onSelect={(d) => setDrawId(d ? d.id : null)}
-        onClose={() => setShowDrawPicker(false)}
-      />
-      <PickerModal
-        visible={showFromPicker}
-        title="Transferred From"
+        visible={showVendorPicker}
+        title="Filter by Vendor"
         clearLabel="All vendors"
         searchPlaceholder="Search vendors..."
         items={vendors}
-        selectedId={fromVendorId}
-        onSelect={(v) => setFromVendorId(v ? v.id : null)}
-        onClose={() => setShowFromPicker(false)}
+        selectedId={vendorId}
+        onSelect={(v) => setVendorId(v ? v.id : null)}
+        onClose={() => setShowVendorPicker(false)}
       />
-      <PickerModal
-        visible={showToPicker}
-        title="Transferred To"
-        clearLabel="All vendors"
-        searchPlaceholder="Search vendors..."
-        items={vendors}
-        selectedId={toVendorId}
-        onSelect={(v) => setToVendorId(v ? v.id : null)}
-        onClose={() => setShowToPicker(false)}
-      />
-      {showDatePicker && (
-        <DateTimePicker
-          mode="date"
-          value={date || new Date()}
-          display={Platform.OS === "android" ? "default" : "spinner"}
-          onChange={(event, picked) => {
-            setShowDatePicker(false);
-            if (event.type === "set" && picked) setDate(picked);
-          }}
-        />
-      )}
     </View>
   );
 }
