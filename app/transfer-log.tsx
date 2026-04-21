@@ -291,12 +291,12 @@ export default function TransferLogScreen() {
   );
 
   const {
-    data: items = [],
+    data: rawData,
     isLoading,
     isFetching,
     isError,
     refetch,
-  } = useQuery<MonitoringTransferLog[]>({
+  } = useQuery<MonitoringTransferLog[] | { results: MonitoringTransferLog[] }>({
     queryKey,
     queryFn: () => {
       const params: Record<string, any> = {};
@@ -312,6 +312,12 @@ export default function TransferLogScreen() {
     retry: false,
   });
 
+  const items: MonitoringTransferLog[] = useMemo(() => {
+    if (Array.isArray(rawData)) return rawData;
+    const maybeResults = (rawData as any)?.results;
+    return Array.isArray(maybeResults) ? maybeResults : [];
+  }, [rawData]);
+
   const drawName = draws.find((d) => d.id === drawId)?.name;
   const fromName = vendors.find((v) => v.id === fromVendorId)?.name;
   const toName = vendors.find((v) => v.id === toVendorId)?.name;
@@ -325,7 +331,8 @@ export default function TransferLogScreen() {
     setToVendorId(null);
   };
 
-  const totalCount = items.reduce((sum, i) => sum + i.count, 0);
+  let totalCount = 0;
+  for (const i of items) totalCount += i?.count ?? 0;
 
   return (
     <View className="flex-1 bg-gray-50">
