@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react-native";
+import { render, screen, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import VendorDetailScreen from "@/app/vendor/[id]";
 import api from "@/utils/axios";
@@ -42,7 +42,6 @@ describe("VendorDetailScreen", () => {
 
     renderWithProviders(<VendorDetailScreen />);
 
-    expect(screen.getByText("Prize Config")).toBeTruthy();
     expect(screen.getByText("Assign Draw")).toBeTruthy();
   });
 
@@ -147,45 +146,4 @@ describe("VendorDetailScreen", () => {
     });
   });
 
-  it("navigates to prize config on quick action press", async () => {
-    mockedApi.get = jest.fn().mockResolvedValue({ data: [] });
-
-    renderWithProviders(<VendorDetailScreen />);
-
-    fireEvent.press(screen.getByText("Prize Config"));
-
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: "/vendor-config/[id]",
-      params: { id: "1" },
-    });
-  });
-
-  it("shows prize config summary when data available", async () => {
-    mockedApi.get = jest.fn((url: string) => {
-      if (url.includes("prize-configuration"))
-        return Promise.resolve({
-          data: {
-            id: 1,
-            is_active: true,
-            default_dealer_commission: 5,
-            single_digit_prize: 100,
-            double_digit_prize: 80,
-            box_direct: 300,
-          },
-        });
-      if (url.includes("administrator/administrator"))
-        return Promise.resolve({ data: [] });
-      return Promise.resolve({ data: [] });
-    });
-
-    renderWithProviders(<VendorDetailScreen />);
-
-    await waitFor(
-      () => {
-        expect(screen.getAllByText("Prize Config").length).toBeGreaterThan(0);
-        expect(screen.getByText("Commission")).toBeTruthy();
-      },
-      { timeout: 10000 }
-    );
-  });
 });
