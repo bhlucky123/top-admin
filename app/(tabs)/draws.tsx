@@ -457,18 +457,24 @@ function DrawCard({
   onEdit,
   onDelete,
   onMonitor,
+  onOpen,
 }: {
   item: Draw & { id: number };
   onEdit: () => void;
   onDelete: () => void;
   onMonitor: () => void;
+  onOpen: () => void;
 }) {
   const themeColor = item.color_theme && /^#[0-9a-fA-F]{6}$/.test(item.color_theme)
     ? item.color_theme
     : "#6366f1";
 
   return (
-    <View className="bg-white mx-4 mb-3 rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={onOpen}
+      className="bg-white mx-4 mb-3 rounded-2xl border border-gray-100 overflow-hidden shadow-sm"
+    >
       <View className="h-1.5" style={{ backgroundColor: themeColor }} />
       <View className="p-5">
         <View className="flex-row items-center justify-between mb-3">
@@ -565,7 +571,7 @@ function DrawCard({
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -696,6 +702,12 @@ export default function DrawsScreen() {
                 router.push({
                   pathname: "/extra-counts",
                   params: { drawId: String(item.id) },
+                })
+              }
+              onOpen={() =>
+                router.push({
+                  pathname: "/draw/[id]",
+                  params: { id: String(item.id), name: item.name },
                 })
               }
             />
