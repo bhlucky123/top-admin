@@ -1,7 +1,8 @@
 import { Clipboard, Plus, X } from "lucide-react-native";
 import { useRef, useState } from "react";
 import * as RNClipboard from "react-native"; // For Clipboard.getString()
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import KeyboardAvoider from "@/components/keyboard-avoider";
 
 type PrizeKey = "first_prize" | "second_prize" | "third_prize" | "fourth_prize" | "fifth_prize";
 const PRIZE_LABELS: Record<PrizeKey, string> = {
@@ -235,10 +236,9 @@ const DrawResultForm = ({ onSubmit, initialData, loading, drawType = "default" }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1, backgroundColor: "#f9fafb" }} // bg-gray-50
-      keyboardVerticalOffset={80}
+    <KeyboardAvoider
+      style={{ flex: 1, backgroundColor: "#f9fafb" }}
+      offset={80}
     >
       <View className="flex-1 bg-gray-50">
         <ScrollView
@@ -438,7 +438,7 @@ const DrawResultForm = ({ onSubmit, initialData, loading, drawType = "default" }
           </TouchableOpacity>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 };
 

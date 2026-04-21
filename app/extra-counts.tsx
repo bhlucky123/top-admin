@@ -1,3 +1,4 @@
+import KeyboardAvoider from "@/components/keyboard-avoider";
 import { Draw } from "@/hooks/use-draw";
 import useMonitoringActions from "@/hooks/use-monitoring-actions";
 import {
@@ -76,7 +77,7 @@ function PickerModal<T extends { id: number; name: string }>({
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalBackdrop}>
+      <KeyboardAvoider style={styles.modalBackdrop}>
         <View style={styles.modalSheet}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{title}</Text>
@@ -107,6 +108,7 @@ function PickerModal<T extends { id: number; name: string }>({
             data={filtered}
             keyExtractor={(i) => i.id.toString()}
             style={{ maxHeight: 380 }}
+            keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => {
               const active = selectedId === item.id;
               return (
@@ -134,7 +136,7 @@ function PickerModal<T extends { id: number; name: string }>({
             }
           />
         </View>
-      </View>
+      </KeyboardAvoider>
     </Modal>
   );
 }

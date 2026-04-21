@@ -1,3 +1,4 @@
+import KeyboardAvoider from "@/components/keyboard-avoider";
 import api from "@/utils/axios";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
@@ -6,8 +7,6 @@ import { useState, useEffect } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StatusBar,
   Text,
@@ -185,10 +184,7 @@ export default function VendorConfigScreen() {
     <View className="flex-1 bg-gray-50">
       <StatusBar barStyle="light-content" backgroundColor="#312E81" />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        className="flex-1"
-      >
+      <KeyboardAvoider className="flex-1">
         <ScrollView
           className="flex-1 px-5 pt-4"
           keyboardShouldPersistTaps="handled"
@@ -295,7 +291,7 @@ export default function VendorConfigScreen() {
             )}
           </TouchableOpacity>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoider>
     </View>
   );
 }

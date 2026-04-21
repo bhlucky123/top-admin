@@ -1,3 +1,4 @@
+import KeyboardAvoider from "@/components/keyboard-avoider";
 import useStaff, { Admin } from "@/hooks/use-staff";
 import { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
@@ -16,8 +17,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -114,10 +113,7 @@ function AdminForm({
         </View>
       </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        className="flex-1"
-      >
+      <KeyboardAvoider className="flex-1">
         <ScrollView
           className="flex-1 px-6 pt-6"
           keyboardShouldPersistTaps="handled"
@@ -305,7 +301,7 @@ function AdminForm({
             </Text>
           </TouchableOpacity>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoider>
     </View>
   );
 }
