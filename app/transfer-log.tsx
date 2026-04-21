@@ -1,3 +1,4 @@
+import KeyboardAvoider from "@/components/keyboard-avoider";
 import { Draw } from "@/hooks/use-draw";
 import { MonitoringTransferLog } from "@/hooks/use-monitoring-actions";
 import { SUB_TYPE_LABELS, TYPE_LABELS } from "@/hooks/use-monitoring-extra-count";
@@ -67,7 +68,7 @@ function PickerModal<T extends { id: number; name: string }>({
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={pickerStyles.modalBackdrop}>
+      <KeyboardAvoider style={pickerStyles.modalBackdrop}>
         <View style={pickerStyles.modalSheet}>
           <View style={pickerStyles.modalHeader}>
             <Text style={pickerStyles.modalTitle}>{title}</Text>
@@ -98,6 +99,7 @@ function PickerModal<T extends { id: number; name: string }>({
             data={filtered}
             keyExtractor={(i) => i.id.toString()}
             style={{ maxHeight: 380 }}
+            keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => {
               const active = selectedId === item.id;
               return (
@@ -128,7 +130,7 @@ function PickerModal<T extends { id: number; name: string }>({
             }
           />
         </View>
-      </View>
+      </KeyboardAvoider>
     </Modal>
   );
 }

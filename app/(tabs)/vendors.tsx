@@ -1,3 +1,4 @@
+import KeyboardAvoider from "@/components/keyboard-avoider";
 import useVendor, { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -8,8 +9,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -135,10 +134,7 @@ function VendorForm({
         </View>
       </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        className="flex-1"
-      >
+      <KeyboardAvoider className="flex-1">
         <ScrollView
           className="flex-1 px-6 pt-8"
           keyboardShouldPersistTaps="handled"
@@ -348,7 +344,7 @@ function VendorForm({
             </Text>
           </TouchableOpacity>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoider>
     </View>
   );
 }

@@ -1,3 +1,4 @@
+import KeyboardAvoider from "@/components/keyboard-avoider";
 import useDraw, { Draw, DrawType } from "@/hooks/use-draw";
 import api from "@/utils/axios";
 import { AntDesign, Feather } from "@expo/vector-icons";
@@ -10,7 +11,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   RefreshControl,
   ScrollView,
@@ -181,7 +181,7 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
   ];
 
   return (
-    <KeyboardAvoidingView style={styles.formContainer}>
+    <KeyboardAvoider style={styles.formContainer}>
       <ScrollView
         style={styles.formScroll}
         contentContainerStyle={styles.formContent}
@@ -447,7 +447,7 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
           />
         )}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 };
 

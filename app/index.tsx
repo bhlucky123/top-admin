@@ -1,10 +1,9 @@
+import KeyboardAvoider from "@/components/keyboard-avoider";
 import { useAuthStore } from "@/store/auth";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   StatusBar,
   Text,
   TextInput,
@@ -34,10 +33,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1"
-    >
+    <KeyboardAvoider className="flex-1">
       <StatusBar barStyle="light-content" backgroundColor="#1E1B4B" />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View className="flex-1 bg-indigo-950 px-6 items-center justify-center">
@@ -141,6 +137,6 @@ export default function LoginScreen() {
           </View>
         </View>
       </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 }
