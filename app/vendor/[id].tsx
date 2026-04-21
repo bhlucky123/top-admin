@@ -32,6 +32,7 @@ import {
   ScrollView,
   StatusBar,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -50,6 +51,18 @@ export default function VendorDetailScreen() {
   const [showAdminForm, setShowAdminForm] = useState(false);
   const [vendorSubmitting, setVendorSubmitting] = useState(false);
   const [adminSubmitting, setAdminSubmitting] = useState(false);
+  const [editingThresholds, setEditingThresholds] = useState(false);
+  const [thresholdsSubmitting, setThresholdsSubmitting] = useState(false);
+  const [thresholdInputs, setThresholdInputs] = useState({
+    monitoring_single_digit_a_count: "",
+    monitoring_single_digit_b_count: "",
+    monitoring_single_digit_c_count: "",
+    monitoring_double_digit_ab_count: "",
+    monitoring_double_digit_bc_count: "",
+    monitoring_double_digit_ac_count: "",
+    monitoring_triple_digit_super_count: "",
+    monitoring_triple_digit_box_count: "",
+  });
 
   // Fetch vendor's assigned draws
   const {
@@ -124,6 +137,79 @@ export default function VendorDetailScreen() {
 
   const vendorNameForHeader =
     vendorDetail?.name || name || `Vendor #${id}`;
+
+  const startEditThresholds = () => {
+    setThresholdInputs({
+      monitoring_single_digit_a_count: String(
+        vendorDetail?.monitoring_single_digit_a_count ?? 0
+      ),
+      monitoring_single_digit_b_count: String(
+        vendorDetail?.monitoring_single_digit_b_count ?? 0
+      ),
+      monitoring_single_digit_c_count: String(
+        vendorDetail?.monitoring_single_digit_c_count ?? 0
+      ),
+      monitoring_double_digit_ab_count: String(
+        vendorDetail?.monitoring_double_digit_ab_count ?? 0
+      ),
+      monitoring_double_digit_bc_count: String(
+        vendorDetail?.monitoring_double_digit_bc_count ?? 0
+      ),
+      monitoring_double_digit_ac_count: String(
+        vendorDetail?.monitoring_double_digit_ac_count ?? 0
+      ),
+      monitoring_triple_digit_super_count: String(
+        vendorDetail?.monitoring_triple_digit_super_count ?? 0
+      ),
+      monitoring_triple_digit_box_count: String(
+        vendorDetail?.monitoring_triple_digit_box_count ?? 0
+      ),
+    });
+    setEditingThresholds(true);
+  };
+
+  const saveThresholds = () => {
+    const parsed: Record<string, number> = {};
+    for (const [key, value] of Object.entries(thresholdInputs)) {
+      const num = Number(value || 0);
+      if (isNaN(num) || num < 0) {
+        Alert.alert(
+          "Invalid value",
+          `"${value}" is not a valid count. Use a non-negative number.`
+        );
+        return;
+      }
+      parsed[key] = num;
+    }
+
+    setThresholdsSubmitting(true);
+    editVendor(
+      { id: vendorId, ...(parsed as any) },
+      {
+        onSuccess: (updated) => {
+          queryClient.setQueryData(["vendor", vendorId], updated);
+          queryClient.setQueryData<Vendor[]>(["vendors"], (old) =>
+            old?.map((v) => (v.id === updated.id ? updated : v)) || []
+          );
+          setEditingThresholds(false);
+          setThresholdsSubmitting(false);
+        },
+        onError: (err: any) => {
+          setThresholdsSubmitting(false);
+          const msg =
+            typeof err?.message === "string"
+              ? err.message
+              : "Failed to save thresholds.";
+          Alert.alert("Error", msg);
+        },
+      }
+    );
+  };
+
+  const cancelEditThresholds = () => {
+    if (thresholdsSubmitting) return;
+    setEditingThresholds(false);
+  };
 
   const handleEditVendor = (data: VendorFormData) => {
     setVendorSubmitting(true);
@@ -794,96 +880,126 @@ export default function VendorDetailScreen() {
             <Text className="text-lg font-bold text-gray-800">
               Monitoring Thresholds
             </Text>
+            {editingThresholds ? (
+              <View className="flex-row gap-2">
+                <TouchableOpacity
+                  onPress={cancelEditThresholds}
+                  disabled={thresholdsSubmitting}
+                  className="px-3 py-1.5 rounded-lg bg-gray-100"
+                  activeOpacity={0.7}
+                >
+                  <Text className="text-gray-600 text-xs font-semibold">
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={saveThresholds}
+                  disabled={thresholdsSubmitting}
+                  className="px-3 py-1.5 rounded-lg bg-indigo-600"
+                  activeOpacity={0.85}
+                  style={thresholdsSubmitting ? { opacity: 0.6 } : undefined}
+                >
+                  {thresholdsSubmitting ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text className="text-white text-xs font-semibold">
+                      Save
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={startEditThresholds}
+                className="w-9 h-9 rounded-lg bg-gray-100 items-center justify-center"
+                activeOpacity={0.7}
+              >
+                <Pencil size={14} color="#4B5563" />
+              </TouchableOpacity>
+            )}
           </View>
+
           <View className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-            <Text className="text-gray-500 text-xs font-semibold mb-2">
-              Single Digit
-            </Text>
-            <View className="flex-row flex-wrap gap-3 mb-4">
-              {[
+            {(
+              [
                 {
-                  label: "A",
-                  value: vendorDetail?.monitoring_single_digit_a_count,
+                  section: "Single Digit",
+                  fields: [
+                    { label: "A", key: "monitoring_single_digit_a_count" },
+                    { label: "B", key: "monitoring_single_digit_b_count" },
+                    { label: "C", key: "monitoring_single_digit_c_count" },
+                  ],
+                  width: "30%",
                 },
                 {
-                  label: "B",
-                  value: vendorDetail?.monitoring_single_digit_b_count,
+                  section: "Double Digit",
+                  fields: [
+                    { label: "AB", key: "monitoring_double_digit_ab_count" },
+                    { label: "BC", key: "monitoring_double_digit_bc_count" },
+                    { label: "AC", key: "monitoring_double_digit_ac_count" },
+                  ],
+                  width: "30%",
                 },
                 {
-                  label: "C",
-                  value: vendorDetail?.monitoring_single_digit_c_count,
+                  section: "Triple Digit",
+                  fields: [
+                    { label: "Super", key: "monitoring_triple_digit_super_count" },
+                    { label: "Box", key: "monitoring_triple_digit_box_count" },
+                  ],
+                  width: "47%",
                 },
-              ].map((item) => (
-                <View
-                  key={`single-${item.label}`}
-                  className="bg-gray-50 px-3 py-2 rounded-lg"
-                  style={{ width: "30%" }}
-                >
-                  <Text className="text-gray-400 text-xs">{item.label}</Text>
-                  <Text className="text-gray-800 font-bold text-sm">
-                    {item.value ?? 0}
-                  </Text>
+              ] as const
+            ).map((group, gi) => (
+              <View
+                key={group.section}
+                className={gi < 2 ? "mb-4" : ""}
+              >
+                <Text className="text-gray-500 text-xs font-semibold mb-2">
+                  {group.section}
+                </Text>
+                <View className="flex-row flex-wrap gap-3">
+                  {group.fields.map((f) => {
+                    const displayValue =
+                      (vendorDetail as any)?.[f.key] ?? 0;
+                    return (
+                      <View
+                        key={f.key}
+                        className="bg-gray-50 px-3 py-2 rounded-lg"
+                        style={{ width: group.width }}
+                      >
+                        <Text className="text-gray-400 text-xs">
+                          {f.label}
+                        </Text>
+                        {editingThresholds ? (
+                          <TextInput
+                            value={
+                              thresholdInputs[
+                                f.key as keyof typeof thresholdInputs
+                              ]
+                            }
+                            onChangeText={(t) =>
+                              setThresholdInputs((prev) => ({
+                                ...prev,
+                                [f.key]: t.replace(/[^0-9]/g, ""),
+                              }))
+                            }
+                            keyboardType="numeric"
+                            editable={!thresholdsSubmitting}
+                            className="text-gray-800 font-bold text-sm bg-white border border-indigo-200 rounded-md px-2 mt-0.5"
+                            placeholder="0"
+                            placeholderTextColor="#9CA3AF"
+                          />
+                        ) : (
+                          <Text className="text-gray-800 font-bold text-sm">
+                            {displayValue}
+                          </Text>
+                        )}
+                      </View>
+                    );
+                  })}
                 </View>
-              ))}
-            </View>
-
-            <Text className="text-gray-500 text-xs font-semibold mb-2">
-              Double Digit
-            </Text>
-            <View className="flex-row flex-wrap gap-3 mb-4">
-              {[
-                {
-                  label: "AB",
-                  value: vendorDetail?.monitoring_double_digit_ab_count,
-                },
-                {
-                  label: "BC",
-                  value: vendorDetail?.monitoring_double_digit_bc_count,
-                },
-                {
-                  label: "AC",
-                  value: vendorDetail?.monitoring_double_digit_ac_count,
-                },
-              ].map((item) => (
-                <View
-                  key={`double-${item.label}`}
-                  className="bg-gray-50 px-3 py-2 rounded-lg"
-                  style={{ width: "30%" }}
-                >
-                  <Text className="text-gray-400 text-xs">{item.label}</Text>
-                  <Text className="text-gray-800 font-bold text-sm">
-                    {item.value ?? 0}
-                  </Text>
-                </View>
-              ))}
-            </View>
-
-            <Text className="text-gray-500 text-xs font-semibold mb-2">
-              Triple Digit
-            </Text>
-            <View className="flex-row flex-wrap gap-3">
-              {[
-                {
-                  label: "Super",
-                  value: vendorDetail?.monitoring_triple_digit_super_count,
-                },
-                {
-                  label: "Box",
-                  value: vendorDetail?.monitoring_triple_digit_box_count,
-                },
-              ].map((item) => (
-                <View
-                  key={`triple-${item.label}`}
-                  className="bg-gray-50 px-3 py-2 rounded-lg"
-                  style={{ width: "47%" }}
-                >
-                  <Text className="text-gray-400 text-xs">{item.label}</Text>
-                  <Text className="text-gray-800 font-bold text-sm">
-                    {item.value ?? 0}
-                  </Text>
-                </View>
-              ))}
-            </View>
+              </View>
+            ))}
           </View>
         </View>
 
