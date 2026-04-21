@@ -1,5 +1,7 @@
 import { Draw } from "@/hooks/use-draw";
-import useMonitoringActions from "@/hooks/use-monitoring-actions";
+import useMonitoringActions, {
+  VendorWithExtras,
+} from "@/hooks/use-monitoring-actions";
 import {
   ALL_SUB_TYPES,
   MonitoringExtraCount,
@@ -30,7 +32,7 @@ import {
   Trash2,
   X,
 } from "lucide-react-native";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -276,6 +278,10 @@ export default function ExtraCountsScreen() {
   const [showVendorPicker, setShowVendorPicker] = useState(false);
   const [showDrawPicker, setShowDrawPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTransferPicker, setShowTransferPicker] = useState(false);
+  const [selectedTransferVendorIds, setSelectedTransferVendorIds] = useState<
+    Set<number>
+  >(new Set());
 
   const { data: vendors = [] } = useQuery<Vendor[]>({
     queryKey: ["vendors"],
@@ -464,41 +470,93 @@ export default function ExtraCountsScreen() {
     );
   };
 
+  const {
+    data: transferCandidates = [],
+    isFetching: loadingCandidates,
+    refetch: refetchCandidates,
+  } = useQuery<VendorWithExtras[]>({
+    queryKey: ["vendors-with-extras", drawId],
+    queryFn: () =>
+      api
+        .get("/draw-monitoring/extra-count/vendors-with-extras/", {
+          params: drawId ? { draw_id: drawId } : {},
+        })
+        .then((r) => (Array.isArray(r.data) ? r.data : [])),
+    enabled: showTransferPicker && !!drawId,
+    retry: false,
+  });
+
+  // Reset selection to "all checked" whenever the candidate list changes.
+  const candidateIdsKey = transferCandidates.map((v) => v.vendor_id).join(",");
+  useEffect(() => {
+    setSelectedTransferVendorIds(
+      new Set(transferCandidates.map((v) => v.vendor_id))
+    );
+  }, [candidateIdsKey]);
+
   const handleTransferAll = () => {
     if (!drawId) {
       Alert.alert(
         "Select a draw",
-        "Transfer All requires a specific draw. Pick one from the Draw filter above."
+        "Transfer requires a specific draw. Pick one from the Draw filter above."
       );
       return;
     }
-    Alert.alert(
-      "Transfer All Extras",
-      `Distribute extras across vendors for "${drawName}" (today's session)?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Transfer",
-          onPress: () => {
-            transferAll.mutate(
-              { draw_id: drawId },
-              {
-                onSuccess: (res) => {
-                  queryClient.invalidateQueries({ queryKey: ["extra-counts"] });
-                  Alert.alert(
-                    "Transfer Complete",
-                    `Transferred: ${res.total_transferred}\nRemaining extra: ${res.total_remaining_extra}`
-                  );
-                },
-                onError: (err: any) => {
-                  const msg = typeof err === "string" ? err : err?.message || "Transfer failed.";
-                  Alert.alert("Error", typeof msg === "string" ? msg : JSON.stringify(msg));
-                },
-              }
-            );
-          },
+    setShowTransferPicker(true);
+  };
+
+  const toggleTransferVendor = (vendorId: number) => {
+    setSelectedTransferVendorIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(vendorId)) next.delete(vendorId);
+      else next.add(vendorId);
+      return next;
+    });
+  };
+
+  const setAllTransferVendors = (checked: boolean) => {
+    if (checked) {
+      setSelectedTransferVendorIds(
+        new Set(transferCandidates.map((v) => v.vendor_id))
+      );
+    } else {
+      setSelectedTransferVendorIds(new Set());
+    }
+  };
+
+  const confirmTransfer = () => {
+    if (!drawId) return;
+    const vendorIds = Array.from(selectedTransferVendorIds);
+    if (vendorIds.length === 0) {
+      Alert.alert(
+        "No vendors selected",
+        "Select at least one vendor to transfer from."
+      );
+      return;
+    }
+    transferAll.mutate(
+      { draw_id: drawId, vendor_ids: vendorIds },
+      {
+        onSuccess: (res) => {
+          queryClient.invalidateQueries({ queryKey: ["extra-counts"] });
+          queryClient.invalidateQueries({
+            queryKey: ["vendors-with-extras"],
+          });
+          setShowTransferPicker(false);
+          Alert.alert(
+            "Transfer Complete",
+            `Transferred: ${res.total_transferred}\nRemaining extra: ${res.total_remaining_extra}`
+          );
         },
-      ]
+        onError: (err: any) => {
+          const msg =
+            typeof err === "string" ? err : err?.message || "Transfer failed.";
+          Alert.alert(
+            "Error",
+            typeof msg === "string" ? msg : JSON.stringify(msg)
+          );
+        },
+      }
     );
   };
 
@@ -805,6 +863,275 @@ export default function ExtraCountsScreen() {
           }}
         />
       )}
+
+      <Modal
+        visible={showTransferPicker}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowTransferPicker(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Transfer Extras</Text>
+              <TouchableOpacity
+                onPress={() => setShowTransferPicker(false)}
+                style={styles.modalClose}
+              >
+                <X size={20} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            <Text
+              style={{
+                paddingHorizontal: 20,
+                color: "#64748b",
+                fontSize: 13,
+                marginBottom: 6,
+              }}
+            >
+              {drawName
+                ? `Draw: ${drawName} (today's session)`
+                : "Today's session"}
+            </Text>
+            <Text
+              style={{
+                paddingHorizontal: 20,
+                color: "#94a3b8",
+                fontSize: 12,
+                marginBottom: 10,
+              }}
+            >
+              Uncheck any vendors you don't want to transfer from.
+            </Text>
+
+            <View
+              style={{
+                flexDirection: "row",
+                paddingHorizontal: 20,
+                paddingVertical: 6,
+                gap: 10,
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => setAllTransferVendors(true)}
+                style={{
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  backgroundColor: "#EEF2FF",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#4338CA",
+                    fontSize: 12,
+                    fontWeight: "600",
+                  }}
+                >
+                  Select all
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setAllTransferVendors(false)}
+                style={{
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  backgroundColor: "#F1F5F9",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#475569",
+                    fontSize: 12,
+                    fontWeight: "600",
+                  }}
+                >
+                  Clear all
+                </Text>
+              </TouchableOpacity>
+              <View style={{ flex: 1 }} />
+              <Text
+                style={{
+                  color: "#64748b",
+                  fontSize: 12,
+                  alignSelf: "center",
+                }}
+              >
+                {selectedTransferVendorIds.size} / {transferCandidates.length}
+              </Text>
+            </View>
+
+            {loadingCandidates ? (
+              <View style={{ paddingVertical: 40, alignItems: "center" }}>
+                <ActivityIndicator size="small" color="#4F46E5" />
+              </View>
+            ) : transferCandidates.length === 0 ? (
+              <View style={{ paddingVertical: 40, alignItems: "center" }}>
+                <Activity size={32} color="#D1D5DB" />
+                <Text
+                  style={{ color: "#94a3b8", fontSize: 13, marginTop: 10 }}
+                >
+                  No vendors have extras for this draw.
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={transferCandidates}
+                keyExtractor={(v) => v.vendor_id.toString()}
+                style={{ maxHeight: 380 }}
+                renderItem={({ item }) => {
+                  const checked = selectedTransferVendorIds.has(item.vendor_id);
+                  return (
+                    <TouchableOpacity
+                      onPress={() => toggleTransferVendor(item.vendor_id)}
+                      activeOpacity={0.7}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingHorizontal: 20,
+                        paddingVertical: 12,
+                        borderBottomWidth: 1,
+                        borderBottomColor: "#f1f5f9",
+                        backgroundColor: checked ? "#F5F3FF" : "#ffffff",
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: 6,
+                          borderWidth: 2,
+                          borderColor: checked ? "#4F46E5" : "#CBD5E1",
+                          backgroundColor: checked ? "#4F46E5" : "transparent",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          marginRight: 12,
+                        }}
+                      >
+                        {checked && (
+                          <AntDesign name="check" size={14} color="#ffffff" />
+                        )}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: "600",
+                            color: "#0f172a",
+                          }}
+                        >
+                          {item.vendor_name || `Vendor #${item.vendor_id}`}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: "#64748b",
+                            marginTop: 2,
+                          }}
+                        >
+                          {item.entries_count} entr
+                          {item.entries_count === 1 ? "y" : "ies"}
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          paddingHorizontal: 10,
+                          paddingVertical: 4,
+                          borderRadius: 8,
+                          backgroundColor: "#FEE2E2",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            fontWeight: "700",
+                            color: "#B91C1C",
+                          }}
+                        >
+                          ×{item.total_extra}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            )}
+
+            <View
+              style={{
+                flexDirection: "row",
+                gap: 10,
+                paddingHorizontal: 20,
+                paddingTop: 12,
+                paddingBottom: 20,
+                borderTopWidth: 1,
+                borderTopColor: "#f1f5f9",
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => setShowTransferPicker(false)}
+                activeOpacity={0.7}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  backgroundColor: "#F1F5F9",
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#475569",
+                    fontSize: 14,
+                    fontWeight: "700",
+                  }}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={confirmTransfer}
+                disabled={
+                  transferAll.isPending ||
+                  selectedTransferVendorIds.size === 0 ||
+                  transferCandidates.length === 0
+                }
+                activeOpacity={0.85}
+                style={{
+                  flex: 2,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  backgroundColor: "#059669",
+                  alignItems: "center",
+                  opacity:
+                    transferAll.isPending ||
+                    selectedTransferVendorIds.size === 0 ||
+                    transferCandidates.length === 0
+                      ? 0.5
+                      : 1,
+                }}
+              >
+                {transferAll.isPending ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text
+                    style={{
+                      color: "#ffffff",
+                      fontSize: 14,
+                      fontWeight: "700",
+                    }}
+                  >
+                    Transfer {selectedTransferVendorIds.size} vendor
+                    {selectedTransferVendorIds.size === 1 ? "" : "s"}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
