@@ -25,13 +25,6 @@ type ClearBody = {
 
 type TransferBody = { draw_id: number; vendor_ids?: number[] };
 
-export type VendorWithExtras = {
-  vendor_id: number;
-  vendor_name: string;
-  total_extra: number;
-  entries_count: number;
-};
-
 export type TransferEntry = {
   from_vendor: string;
   from_vendor_id: number;
