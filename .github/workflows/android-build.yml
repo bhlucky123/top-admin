@@ -64,13 +64,13 @@ jobs:
       - name: Rename APK
         run: |
           APK_PATH=$(find android/app/build/outputs/apk/release -name "*.apk" | head -1)
-          cp "$APK_PATH" "calculator-app.apk"
+          cp "$APK_PATH" "top-admin.apk"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: calculator-apk
-          path: "calculator-app.apk"
+          name: top-admin-apk
+          path: "top-admin.apk"
           retention-days: 5
 
   release:
