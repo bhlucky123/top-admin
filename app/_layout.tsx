@@ -39,6 +39,18 @@ export default function RootLayout() {
             options={{ title: "Prize Configuration" }}
           />
           <Stack.Screen
+            name="draw/[id]/index"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="draw/[id]/sales-report"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="draw/[id]/winnings"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
             name="extra-counts"
             options={{ headerShown: false }}
           />
