@@ -1,7 +1,5 @@
 import { Draw } from "@/hooks/use-draw";
-import useMonitoringActions, {
-  VendorWithExtras,
-} from "@/hooks/use-monitoring-actions";
+import useMonitoringActions from "@/hooks/use-monitoring-actions";
 import {
   ALL_SUB_TYPES,
   MonitoringExtraCount,
@@ -473,24 +471,23 @@ export default function ExtraCountsScreen() {
   const {
     data: transferCandidates = [],
     isFetching: loadingCandidates,
-    refetch: refetchCandidates,
-  } = useQuery<VendorWithExtras[]>({
-    queryKey: ["vendors-with-extras", drawId],
+  } = useQuery<Vendor[]>({
+    queryKey: ["vendors", "monitoring-enabled"],
     queryFn: () =>
       api
-        .get("/draw-monitoring/extra-count/vendors-with-extras/", {
-          params: drawId ? { draw_id: drawId } : {},
+        .get("/administrator/vendors/", {
+          params: { monitoring_enabled: true, is_active: true },
         })
         .then((r) => (Array.isArray(r.data) ? r.data : [])),
-    enabled: showTransferPicker && !!drawId,
+    enabled: showTransferPicker,
     retry: false,
   });
 
   // Reset selection to "all checked" whenever the candidate list changes.
-  const candidateIdsKey = transferCandidates.map((v) => v.vendor_id).join(",");
+  const candidateIdsKey = transferCandidates.map((v) => v.id).join(",");
   useEffect(() => {
     setSelectedTransferVendorIds(
-      new Set(transferCandidates.map((v) => v.vendor_id))
+      new Set(transferCandidates.map((v) => v.id))
     );
   }, [candidateIdsKey]);
 
@@ -517,7 +514,7 @@ export default function ExtraCountsScreen() {
   const setAllTransferVendors = (checked: boolean) => {
     if (checked) {
       setSelectedTransferVendorIds(
-        new Set(transferCandidates.map((v) => v.vendor_id))
+        new Set(transferCandidates.map((v) => v.id))
       );
     } else {
       setSelectedTransferVendorIds(new Set());
@@ -539,9 +536,6 @@ export default function ExtraCountsScreen() {
       {
         onSuccess: (res) => {
           queryClient.invalidateQueries({ queryKey: ["extra-counts"] });
-          queryClient.invalidateQueries({
-            queryKey: ["vendors-with-extras"],
-          });
           setShowTransferPicker(false);
           Alert.alert(
             "Transfer Complete",
@@ -973,19 +967,19 @@ export default function ExtraCountsScreen() {
                 <Text
                   style={{ color: "#94a3b8", fontSize: 13, marginTop: 10 }}
                 >
-                  No vendors have extras for this draw.
+                  No monitoring-enabled vendors found.
                 </Text>
               </View>
             ) : (
               <FlatList
                 data={transferCandidates}
-                keyExtractor={(v) => v.vendor_id.toString()}
+                keyExtractor={(v) => v.id.toString()}
                 style={{ maxHeight: 380 }}
                 renderItem={({ item }) => {
-                  const checked = selectedTransferVendorIds.has(item.vendor_id);
+                  const checked = selectedTransferVendorIds.has(item.id);
                   return (
                     <TouchableOpacity
-                      onPress={() => toggleTransferVendor(item.vendor_id)}
+                      onPress={() => toggleTransferVendor(item.id)}
                       activeOpacity={0.7}
                       style={{
                         flexDirection: "row",
@@ -1014,45 +1008,16 @@ export default function ExtraCountsScreen() {
                           <AntDesign name="check" size={14} color="#ffffff" />
                         )}
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            fontWeight: "600",
-                            color: "#0f172a",
-                          }}
-                        >
-                          {item.vendor_name || `Vendor #${item.vendor_id}`}
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 11,
-                            color: "#64748b",
-                            marginTop: 2,
-                          }}
-                        >
-                          {item.entries_count} entr
-                          {item.entries_count === 1 ? "y" : "ies"}
-                        </Text>
-                      </View>
-                      <View
+                      <Text
                         style={{
-                          paddingHorizontal: 10,
-                          paddingVertical: 4,
-                          borderRadius: 8,
-                          backgroundColor: "#FEE2E2",
+                          flex: 1,
+                          fontSize: 14,
+                          fontWeight: "600",
+                          color: "#0f172a",
                         }}
                       >
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            fontWeight: "700",
-                            color: "#B91C1C",
-                          }}
-                        >
-                          ×{item.total_extra}
-                        </Text>
-                      </View>
+                        {item.name || `Vendor #${item.id}`}
+                      </Text>
                     </TouchableOpacity>
                   );
                 }}
