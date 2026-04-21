@@ -13,13 +13,11 @@ import { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
 import { AntDesign } from "@expo/vector-icons";
 import Clipboard from "@react-native-clipboard/clipboard";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   Activity,
   Building2,
-  Calendar,
   ChevronDown,
   Copy,
   History,
@@ -36,7 +34,6 @@ import {
   Alert,
   FlatList,
   Modal,
-  Platform,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -269,13 +266,11 @@ export default function ExtraCountsScreen() {
 
   const [vendorId, setVendorId] = useState<number | null>(initialVendorId);
   const [drawId, setDrawId] = useState<number | null>(initialDrawId);
-  const [date, setDate] = useState<Date | null>(null);
   const [type, setType] = useState<MonitoringType | null>(null);
   const [subType, setSubType] = useState<MonitoringSubType | null>(null);
 
   const [showVendorPicker, setShowVendorPicker] = useState(false);
   const [showDrawPicker, setShowDrawPicker] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTransferPicker, setShowTransferPicker] = useState(false);
   const [selectedTransferVendorIds, setSelectedTransferVendorIds] = useState<
     Set<number>
@@ -294,15 +289,8 @@ export default function ExtraCountsScreen() {
   });
 
   const queryKey = useMemo(
-    () => [
-      "extra-counts",
-      vendorId,
-      drawId,
-      date?.toISOString().split("T")[0],
-      type,
-      subType,
-    ],
-    [vendorId, drawId, date, type, subType]
+    () => ["extra-counts", vendorId, drawId, type, subType],
+    [vendorId, drawId, type, subType]
   );
 
   const PAGE_SIZE = 50;
@@ -334,7 +322,6 @@ export default function ExtraCountsScreen() {
       };
       if (vendorId) params.vendor__id = vendorId;
       if (drawId) params.draw_session__draw__id = drawId;
-      if (date) params.draw_session__session_date = date.toISOString().split("T")[0];
       if (type) params.type = type;
       if (subType) params.sub_type = subType;
       return api
@@ -385,13 +372,11 @@ export default function ExtraCountsScreen() {
 
   const vendorName = vendors.find((v) => v.id === vendorId)?.name;
   const drawName = draws.find((d) => d.id === drawId)?.name;
-  const hasFilters =
-    !!vendorId || !!drawId || !!date || !!type || !!subType;
+  const hasFilters = !!vendorId || !!drawId || !!type || !!subType;
 
   const clearAll = () => {
     setVendorId(null);
     setDrawId(null);
-    setDate(null);
     setType(null);
     setSubType(null);
   };
@@ -408,8 +393,6 @@ export default function ExtraCountsScreen() {
       const params: Record<string, any> = {};
       if (vendorId) params.vendor__id = vendorId;
       if (drawId) params.draw_session__draw__id = drawId;
-      if (date)
-        params.draw_session__session_date = date.toISOString().split("T")[0];
       if (type) params.type = type;
       if (subType) params.sub_type = subType;
       const lines = await copyAll.mutateAsync(params);
@@ -433,10 +416,11 @@ export default function ExtraCountsScreen() {
     const parts: string[] = [];
     if (vendorName) parts.push(`vendor "${vendorName}"`);
     if (drawName) parts.push(`draw "${drawName}"`);
-    if (date) parts.push(`date ${date.toISOString().split("T")[0]}`);
     if (type) parts.push(`type ${TYPE_LABELS[type]}`);
     if (subType) parts.push(`sub-type ${SUB_TYPE_LABELS[subType]}`);
-    const scope = parts.length ? parts.join(", ") : "all filtered entries";
+    const scope = parts.length
+      ? parts.join(", ")
+      : "today's active session";
     Alert.alert(
       "Clear Extra Counts",
       `Delete entries for ${scope}? This cannot be undone.`,
@@ -449,7 +433,6 @@ export default function ExtraCountsScreen() {
             const body: Record<string, any> = {};
             if (vendorId) body.vendor_id = vendorId;
             if (drawId) body.draw_id = drawId;
-            if (date) body.session_date = date.toISOString().split("T")[0];
             if (type) body.type = type;
             if (subType) body.sub_type = subType;
             clear.mutate(body, {
@@ -594,13 +577,6 @@ export default function ExtraCountsScreen() {
           value={drawName || "All"}
           active={!!drawId}
           onPress={() => setShowDrawPicker(true)}
-        />
-        <FilterRow
-          icon={<Calendar size={14} color="#6366F1" />}
-          label="Date"
-          value={date ? date.toISOString().split("T")[0] : "All"}
-          active={!!date}
-          onPress={() => setShowDatePicker(true)}
         />
 
         <Text className="text-gray-400 text-xs font-semibold mt-1">Type</Text>
@@ -846,18 +822,6 @@ export default function ExtraCountsScreen() {
         onSelect={(d) => setDrawId(d ? d.id : null)}
         onClose={() => setShowDrawPicker(false)}
       />
-      {showDatePicker && (
-        <DateTimePicker
-          mode="date"
-          value={date || new Date()}
-          display={Platform.OS === "android" ? "default" : "spinner"}
-          onChange={(event, picked) => {
-            setShowDatePicker(false);
-            if (event.type === "set" && picked) setDate(picked);
-          }}
-        />
-      )}
-
       <Modal
         visible={showTransferPicker}
         animationType="slide"
