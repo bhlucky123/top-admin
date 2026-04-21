@@ -1,5 +1,6 @@
 import KeyboardAvoider from "@/components/keyboard-avoider";
 import api from "@/utils/axios";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import { Save } from "lucide-react-native";
@@ -94,6 +95,7 @@ export default function VendorConfigScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const vendorId = Number(id);
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
 
   const {
     data: config,
@@ -189,7 +191,7 @@ export default function VendorConfigScreen() {
           className="flex-1 px-5 pt-4"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 40 }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
         >
           {/* App Status Toggle */}
           <View className="bg-white rounded-2xl border border-gray-100 p-5 mb-5 shadow-sm">

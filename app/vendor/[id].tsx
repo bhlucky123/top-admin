@@ -1,7 +1,7 @@
 import useVendorDraw, { VendorDraw } from "@/hooks/use-vendor-draw";
 import useVendorFeature, { VendorFeature } from "@/hooks/use-vendor-feature";
 import { Admin } from "@/hooks/use-staff";
-import { Vendor } from "@/hooks/use-vendor";
+import useVendor, { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -9,6 +9,7 @@ import {
   Building2,
   Check,
   ChevronRight,
+  Power,
   Settings,
   Shield,
   Ticket,
@@ -29,11 +30,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function VendorDetailScreen() {
   const { id, name, is_active: isActiveParam } = useLocalSearchParams<{ id: string; name: string; is_active: string }>();
   const vendorId = Number(id);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [showDrawPicker, setShowDrawPicker] = useState(false);
   const [showFeaturePicker, setShowFeaturePicker] = useState(false);
@@ -111,6 +114,51 @@ export default function VendorDetailScreen() {
 
   const { assignFeatures, isAssigningFeatures } = useVendorFeature();
   const { assignDraw, unassignDraw, isAssigning } = useVendorDraw();
+  const { toggleActive, isToggling } = useVendor();
+
+  // Prefer the freshly-fetched vendor for is_active so the button reflects
+  // the current server state after toggling. Falls back to the param.
+  const isActive =
+    typeof vendorDetail?.is_active === "boolean"
+      ? vendorDetail.is_active
+      : isActiveParam === "true";
+
+  const handleToggleActive = () => {
+    const action = isActive ? "Deactivate" : "Activate";
+    Alert.alert(
+      `${action} Vendor`,
+      `Are you sure you want to ${action.toLowerCase()} "${
+        name || `Vendor #${id}`
+      }"?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: action,
+          style: isActive ? "destructive" : "default",
+          onPress: () => {
+            toggleActive(
+              { id: vendorId, is_active: !isActive },
+              {
+                onSuccess: (updated) => {
+                  queryClient.setQueryData(["vendor", vendorId], updated);
+                  queryClient.setQueryData<Vendor[]>(["vendors"], (old) =>
+                    old?.map((v) => (v.id === updated.id ? updated : v)) || []
+                  );
+                },
+                onError: (err: any) => {
+                  const msg =
+                    typeof err?.message === "string"
+                      ? err.message
+                      : `Failed to ${action.toLowerCase()} vendor.`;
+                  Alert.alert("Error", msg);
+                },
+              }
+            );
+          },
+        },
+      ]
+    );
+  };
 
   // Available draws (not yet assigned)
   const assignedDrawIds = vendorDraws.map((vd) => vd.draw);
@@ -185,7 +233,7 @@ export default function VendorDetailScreen() {
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -198,26 +246,87 @@ export default function VendorDetailScreen() {
       >
         {/* Vendor Header Card */}
         <View className="mx-5 mt-4 bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-          <View className="h-2 bg-indigo-500" />
-          <View className="p-5 flex-row items-center">
-            <View className="w-14 h-14 rounded-2xl bg-indigo-50 items-center justify-center mr-4">
-              <Building2 size={28} color="#4F46E5" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-xl font-bold text-gray-900">
-                {name || `Vendor #${id}`}
-              </Text>
-              <View className="flex-row items-center mt-1 gap-2">
-                <Text className="text-gray-400 text-sm">
-                  Vendor ID: {id}
+          <View className={`h-2 ${isActive ? "bg-indigo-500" : "bg-gray-300"}`} />
+          <View className="p-5">
+            <View className="flex-row items-center">
+              <View
+                className={`w-14 h-14 rounded-2xl items-center justify-center mr-4 ${
+                  isActive ? "bg-indigo-50" : "bg-gray-100"
+                }`}
+              >
+                <Building2
+                  size={28}
+                  color={isActive ? "#4F46E5" : "#9CA3AF"}
+                />
+              </View>
+              <View className="flex-1">
+                <Text
+                  className={`text-xl font-bold ${
+                    isActive ? "text-gray-900" : "text-gray-500"
+                  }`}
+                  numberOfLines={1}
+                >
+                  {name || `Vendor #${id}`}
                 </Text>
-                <View className={`px-2 py-0.5 rounded-full ${isActiveParam === "true" ? "bg-green-50" : "bg-red-50"}`}>
-                  <Text className={`text-xs font-semibold ${isActiveParam === "true" ? "text-green-600" : "text-red-500"}`}>
-                    {isActiveParam === "true" ? "Active" : "Inactive"}
+                <View className="flex-row items-center mt-1 gap-2">
+                  <Text className="text-gray-400 text-sm">
+                    ID: {id}
                   </Text>
+                  <View
+                    className={`flex-row items-center px-2 py-0.5 rounded-full ${
+                      isActive ? "bg-green-50" : "bg-red-50"
+                    }`}
+                  >
+                    <View
+                      className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                        isActive ? "bg-green-500" : "bg-red-500"
+                      }`}
+                    />
+                    <Text
+                      className={`text-xs font-semibold ${
+                        isActive ? "text-green-700" : "text-red-600"
+                      }`}
+                    >
+                      {isActive ? "Active" : "Inactive"}
+                    </Text>
+                  </View>
                 </View>
               </View>
             </View>
+
+            {/* Activate / Deactivate */}
+            <TouchableOpacity
+              onPress={handleToggleActive}
+              disabled={isToggling}
+              activeOpacity={0.85}
+              className={`mt-4 flex-row items-center justify-center py-3 rounded-xl border ${
+                isActive
+                  ? "bg-red-50 border-red-100"
+                  : "bg-green-50 border-green-100"
+              }`}
+              style={isToggling ? { opacity: 0.6 } : undefined}
+            >
+              {isToggling ? (
+                <ActivityIndicator
+                  size="small"
+                  color={isActive ? "#B91C1C" : "#047857"}
+                />
+              ) : (
+                <>
+                  <Power
+                    size={16}
+                    color={isActive ? "#B91C1C" : "#047857"}
+                  />
+                  <Text
+                    className={`ml-2 font-bold text-sm ${
+                      isActive ? "text-red-700" : "text-emerald-700"
+                    }`}
+                  >
+                    {isActive ? "Deactivate Vendor" : "Activate Vendor"}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -641,7 +750,7 @@ export default function VendorDetailScreen() {
               <FlatList
                 data={allFeatures}
                 keyExtractor={(item) => item.id.toString()}
-                contentContainerStyle={{ paddingBottom: 40 }}
+                contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
                 renderItem={({ item }) => {
                   const isAssigned = assignedFeatureIds.includes(item.id);
                   return (
@@ -723,7 +832,7 @@ export default function VendorDetailScreen() {
               <FlatList
                 data={availableDraws}
                 keyExtractor={(item) => item.id.toString()}
-                contentContainerStyle={{ paddingBottom: 40 }}
+                contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     onPress={() => handleAssign(item.id)}

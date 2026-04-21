@@ -12,9 +12,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function DrawDetailScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const drawId = String(id);
   const drawName = name || `Draw #${drawId}`;
@@ -78,7 +80,10 @@ export default function DrawDetailScreen() {
       </View>
 
       {/* Options */}
-      <View className="px-4 pt-6">
+      <View
+        className="px-4 pt-6"
+        style={{ paddingBottom: insets.bottom + 16 }}
+      >
         {options.map((opt) => (
           <TouchableOpacity
             key={opt.key}

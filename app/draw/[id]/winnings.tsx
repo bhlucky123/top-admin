@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type WinnerRow = {
   customer_name?: string | null;
@@ -60,6 +61,7 @@ const fmtMoney = (n: number | undefined | null) =>
 
 export default function DrawWinningsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const drawId = Number(id);
   const drawName = name || `Draw #${drawId}`;
@@ -228,6 +230,9 @@ export default function DrawWinningsScreen() {
           keyExtractor={(r, idx) =>
             `${r.bill_number ?? "b"}-${r.win_number ?? "w"}-${idx}`
           }
+          contentContainerStyle={{
+            paddingBottom: rows.length > 0 ? 0 : insets.bottom + 40,
+          }}
           renderItem={({ item, index }) => (
             <View
               className="flex-row items-center px-4 py-3 border-b border-gray-100"
@@ -333,7 +338,10 @@ export default function DrawWinningsScreen() {
 
       {/* Totals footer */}
       {!isLoading && !isError && rows.length > 0 && (
-        <View className="bg-white border-t border-gray-200 px-5 py-3">
+        <View
+          className="bg-white border-t border-gray-200 px-5 pt-3"
+          style={{ paddingBottom: insets.bottom + 12 }}
+        >
           <View className="flex-row items-center justify-between">
             <View>
               <Text className="text-[10px] text-gray-400 font-semibold uppercase">
