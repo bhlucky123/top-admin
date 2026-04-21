@@ -6,7 +6,6 @@ import {
   ChevronRight,
   RefreshCw,
   Ticket,
-  Users,
 } from "lucide-react-native";
 import {
   ActivityIndicator,
@@ -48,21 +47,11 @@ export default function DashboardScreen() {
     queryFn: () => api.get("/draw/").then((r) => r.data),
   });
 
-  const {
-    data: admins = [],
-    isLoading: adminsLoading,
-    refetch: refetchAdmins,
-  } = useQuery<any[]>({
-    queryKey: ["admins"],
-    queryFn: () => api.get("/administrator/administrator/").then((r) => r.data),
-  });
-
-  const isLoading = vendorsLoading || drawsLoading || adminsLoading;
+  const isLoading = vendorsLoading || drawsLoading;
 
   const onRefresh = () => {
     refetchVendors();
     refetchDraws();
-    refetchAdmins();
   };
 
   const stats = [
@@ -81,14 +70,6 @@ export default function DashboardScreen() {
       color: "#059669",
       bg: "#ECFDF5",
       route: "/(tabs)/draws" as const,
-    },
-    {
-      label: "Administrators",
-      value: admins.length,
-      icon: Users,
-      color: "#D97706",
-      bg: "#FFFBEB",
-      route: "/(tabs)/admins" as const,
     },
   ];
 

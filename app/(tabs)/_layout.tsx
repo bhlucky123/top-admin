@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   Settings,
   Ticket,
-  Users,
 } from "lucide-react-native";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -75,13 +74,6 @@ export default function TabLayout() {
           options={{
             title: "Draws",
             tabBarIcon: ({ color }) => <Ticket size={22} color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="admins"
-          options={{
-            title: "Admins",
-            tabBarIcon: ({ color }) => <Users size={22} color={color} />,
           }}
         />
         <Tabs.Screen

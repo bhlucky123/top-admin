@@ -1,6 +1,8 @@
+import AdminForm, { AdminFormPayload } from "@/components/admin-form";
+import VendorForm, { VendorFormData } from "@/components/vendor-form";
+import useStaff, { Admin } from "@/hooks/use-staff";
 import useVendorDraw, { VendorDraw } from "@/hooks/use-vendor-draw";
 import useVendorFeature, { VendorFeature } from "@/hooks/use-vendor-feature";
-import { Admin } from "@/hooks/use-staff";
 import useVendor, { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,9 +11,12 @@ import {
   Building2,
   Check,
   ChevronRight,
+  Pencil,
+  Plus,
   Power,
   Settings,
   Shield,
+  Star,
   Ticket,
   Trash2,
   Users,
@@ -40,6 +45,11 @@ export default function VendorDetailScreen() {
   const queryClient = useQueryClient();
   const [showDrawPicker, setShowDrawPicker] = useState(false);
   const [showFeaturePicker, setShowFeaturePicker] = useState(false);
+  const [showVendorEdit, setShowVendorEdit] = useState(false);
+  const [adminEditorData, setAdminEditorData] = useState<Admin | null>(null);
+  const [showAdminForm, setShowAdminForm] = useState(false);
+  const [vendorSubmitting, setVendorSubmitting] = useState(false);
+  const [adminSubmitting, setAdminSubmitting] = useState(false);
 
   // Fetch vendor's assigned draws
   const {
@@ -103,7 +113,139 @@ export default function VendorDetailScreen() {
 
   const { assignFeatures, isAssigningFeatures } = useVendorFeature();
   const { assignDraw, unassignDraw, isAssigning } = useVendorDraw();
-  const { toggleActive, isToggling } = useVendor();
+  const { toggleActive, isToggling, editVendor } = useVendor();
+  const {
+    createAdmin,
+    editAdmin,
+    deleteAdmin,
+    setMainVendor,
+    isSettingMainVendor,
+  } = useStaff();
+
+  const vendorNameForHeader =
+    vendorDetail?.name || name || `Vendor #${id}`;
+
+  const handleEditVendor = (data: VendorFormData) => {
+    setVendorSubmitting(true);
+    editVendor(
+      { id: vendorId, ...data },
+      {
+        onSuccess: (updated) => {
+          queryClient.setQueryData(["vendor", vendorId], updated);
+          queryClient.setQueryData<Vendor[]>(["vendors"], (old) =>
+            old?.map((v) => (v.id === updated.id ? updated : v)) || []
+          );
+          setShowVendorEdit(false);
+          setVendorSubmitting(false);
+        },
+        onError: (err: any) => {
+          setVendorSubmitting(false);
+          const msg =
+            err?.message?.name?.[0] ||
+            (typeof err?.message === "string"
+              ? err.message
+              : "Failed to update vendor.");
+          Alert.alert("Error", msg);
+        },
+      }
+    );
+  };
+
+  const handleCreateAdmin = (data: AdminFormPayload) => {
+    setAdminSubmitting(true);
+    createAdmin(data as any, {
+      onSuccess: () => {
+        refetchAdmins();
+        setShowAdminForm(false);
+        setAdminEditorData(null);
+        setAdminSubmitting(false);
+      },
+      onError: (err: any) => {
+        setAdminSubmitting(false);
+        const msg =
+          err?.message?.username?.[0] ||
+          err?.message?.detail ||
+          (typeof err?.message === "string"
+            ? err.message
+            : "Failed to create admin.");
+        Alert.alert("Error", msg);
+      },
+    });
+  };
+
+  const handleEditAdmin = (data: AdminFormPayload) => {
+    if (!adminEditorData) return;
+    setAdminSubmitting(true);
+    editAdmin(
+      { id: adminEditorData.id, ...data },
+      {
+        onSuccess: () => {
+          refetchAdmins();
+          setShowAdminForm(false);
+          setAdminEditorData(null);
+          setAdminSubmitting(false);
+        },
+        onError: (err: any) => {
+          setAdminSubmitting(false);
+          const msg =
+            err?.message?.username?.[0] ||
+            err?.message?.detail ||
+            (typeof err?.message === "string"
+              ? err.message
+              : "Failed to update admin.");
+          Alert.alert("Error", msg);
+        },
+      }
+    );
+  };
+
+  const handleDeleteAdmin = (admin: Admin) => {
+    Alert.alert(
+      "Delete Admin",
+      `Delete "${admin.username}"? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            deleteAdmin(
+              { id: admin.id },
+              {
+                onSuccess: () => refetchAdmins(),
+                onError: (err: any) => {
+                  const msg =
+                    typeof err?.message === "string"
+                      ? err.message
+                      : "Failed to delete admin.";
+                  Alert.alert("Error", msg);
+                },
+              }
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSetMainAdmin = (admin: Admin) => {
+    // Tapping the star promotes this admin and demotes the previous one.
+    // If the admin is already main, do nothing.
+    if (admin.is_main_vendor) return;
+    setMainVendor(
+      { id: admin.id, is_main_vendor: true },
+      {
+        onSuccess: () => refetchAdmins(),
+        onError: (err: any) => {
+          const msg =
+            typeof err?.message === "string"
+              ? err.message
+              : "Failed to set main admin.";
+          Alert.alert("Error", msg);
+        },
+      }
+    );
+  };
 
   // Prefer the freshly-fetched vendor for is_active so the button reflects
   // the current server state after toggling. Falls back to the param.
@@ -216,6 +358,34 @@ export default function VendorDetailScreen() {
     queryClient.invalidateQueries({ queryKey: ["vendor", vendorId] });
   };
 
+  // --- Inline forms (full-screen) ---
+  if (showVendorEdit) {
+    return (
+      <VendorForm
+        onSubmit={handleEditVendor}
+        defaultValues={vendorDetail || { id: vendorId, name: name as string }}
+        onCancel={() => setShowVendorEdit(false)}
+        submitting={vendorSubmitting}
+      />
+    );
+  }
+
+  if (showAdminForm) {
+    return (
+      <AdminForm
+        onSubmit={adminEditorData ? handleEditAdmin : handleCreateAdmin}
+        defaultValues={adminEditorData || undefined}
+        onCancel={() => {
+          setShowAdminForm(false);
+          setAdminEditorData(null);
+        }}
+        submitting={adminSubmitting}
+        vendorId={vendorId}
+        vendorName={vendorNameForHeader}
+      />
+    );
+  }
+
   return (
     <View className="flex-1 bg-gray-50">
       <StatusBar barStyle="light-content" backgroundColor="#312E81" />
@@ -255,12 +425,10 @@ export default function VendorDetailScreen() {
                   }`}
                   numberOfLines={1}
                 >
-                  {name || `Vendor #${id}`}
+                  {vendorNameForHeader}
                 </Text>
                 <View className="flex-row items-center mt-1 gap-2">
-                  <Text className="text-gray-400 text-sm">
-                    ID: {id}
-                  </Text>
+                  <Text className="text-gray-400 text-sm">ID: {id}</Text>
                   <View
                     className={`flex-row items-center px-2 py-0.5 rounded-full ${
                       isActive ? "bg-green-50" : "bg-red-50"
@@ -281,6 +449,13 @@ export default function VendorDetailScreen() {
                   </View>
                 </View>
               </View>
+              <TouchableOpacity
+                onPress={() => setShowVendorEdit(true)}
+                className="w-10 h-10 rounded-xl bg-gray-100 items-center justify-center"
+                activeOpacity={0.7}
+              >
+                <Pencil size={16} color="#4B5563" />
+              </TouchableOpacity>
             </View>
 
             {/* Activate / Deactivate */}
@@ -423,12 +598,28 @@ export default function VendorDetailScreen() {
             <Text className="text-lg font-bold text-gray-800">
               Administrators
             </Text>
-            <View className="bg-amber-50 px-2.5 py-1 rounded-md">
-              <Text className="text-amber-600 text-xs font-bold">
-                {admins.length}
-              </Text>
+            <View className="flex-row items-center gap-2">
+              <View className="bg-amber-50 px-2.5 py-1 rounded-md">
+                <Text className="text-amber-600 text-xs font-bold">
+                  {admins.length}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  setAdminEditorData(null);
+                  setShowAdminForm(true);
+                }}
+                className="w-8 h-8 rounded-lg bg-indigo-600 items-center justify-center"
+                activeOpacity={0.8}
+              >
+                <Plus size={16} color="#ffffff" />
+              </TouchableOpacity>
             </View>
           </View>
+
+          <Text className="text-gray-400 text-xs mb-2">
+            Tap the star to mark as main admin (only one per vendor).
+          </Text>
 
           {adminsLoading ? (
             <View className="bg-white rounded-2xl p-6 items-center">
@@ -440,44 +631,92 @@ export default function VendorDetailScreen() {
               <Text className="text-gray-400 mt-2 text-sm">
                 No administrators
               </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setAdminEditorData(null);
+                  setShowAdminForm(true);
+                }}
+                className="mt-3 bg-indigo-600 px-5 py-2 rounded-xl"
+              >
+                <Text className="text-white font-semibold text-sm">
+                  Add Admin
+                </Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <View className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              {admins.map((admin, index) => (
-                <View
-                  key={admin.id}
-                  className={`flex-row items-center px-5 py-4 ${
-                    index < admins.length - 1
-                      ? "border-b border-gray-100"
-                      : ""
-                  }`}
-                >
-                  <View className="w-9 h-9 rounded-lg bg-amber-50 items-center justify-center mr-3">
-                    <Users size={16} color="#D97706" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-gray-800 font-semibold text-sm">
-                      {admin.username}
-                    </Text>
-                    <View className="flex-row gap-2 mt-1">
-                      {admin.is_main_vendor && (
-                        <Text className="text-indigo-500 text-xs font-medium">
-                          Main Admin
-                        </Text>
-                      )}
+              {admins.map((admin, index) => {
+                const isMain = !!admin.is_main_vendor;
+                return (
+                  <View
+                    key={admin.id}
+                    className={`flex-row items-center px-5 py-4 ${
+                      index < admins.length - 1
+                        ? "border-b border-gray-100"
+                        : ""
+                    }`}
+                  >
+                    <TouchableOpacity
+                      onPress={() => handleSetMainAdmin(admin)}
+                      disabled={isMain || isSettingMainVendor}
+                      activeOpacity={0.7}
+                      hitSlop={8}
+                      className={`w-9 h-9 rounded-lg items-center justify-center mr-3 ${
+                        isMain ? "bg-indigo-100" : "bg-gray-50"
+                      }`}
+                    >
+                      <Star
+                        size={16}
+                        color={isMain ? "#4F46E5" : "#9CA3AF"}
+                        fill={isMain ? "#4F46E5" : "transparent"}
+                      />
+                    </TouchableOpacity>
+                    <View className="flex-1 mr-2">
                       <Text
-                        className={`text-xs font-medium ${
-                          admin.is_active
-                            ? "text-green-500"
-                            : "text-gray-400"
-                        }`}
+                        className="text-gray-800 font-semibold text-sm"
+                        numberOfLines={1}
                       >
-                        {admin.is_active ? "Active" : "Inactive"}
+                        {admin.username}
                       </Text>
+                      <View className="flex-row gap-2 mt-1">
+                        {isMain && (
+                          <Text className="text-indigo-500 text-xs font-medium">
+                            Main Admin
+                          </Text>
+                        )}
+                        <Text
+                          className={`text-xs font-medium ${
+                            admin.is_active
+                              ? "text-green-500"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          {admin.is_active ? "Active" : "Inactive"}
+                        </Text>
+                      </View>
                     </View>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setAdminEditorData(admin);
+                        setShowAdminForm(true);
+                      }}
+                      className="w-8 h-8 rounded-lg bg-gray-50 items-center justify-center mr-2"
+                      activeOpacity={0.7}
+                      hitSlop={6}
+                    >
+                      <Pencil size={13} color="#4B5563" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteAdmin(admin)}
+                      className="w-8 h-8 rounded-lg bg-red-50 items-center justify-center"
+                      activeOpacity={0.7}
+                      hitSlop={6}
+                    >
+                      <Trash2 size={13} color="#DC2626" />
+                    </TouchableOpacity>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
           )}
         </View>
