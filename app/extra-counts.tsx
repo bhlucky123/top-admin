@@ -335,17 +335,45 @@ export default function ExtraCountsScreen() {
       if (subType) params.sub_type = subType;
       return api
         .get("/draw-monitoring/extra-count/", { params })
-        .then((r) => r.data);
+        .then((r) => {
+          // Defensive: backend may return either paginated object or legacy raw array
+          const raw = r.data;
+          if (Array.isArray(raw)) {
+            return {
+              count: raw.length,
+              next: null,
+              previous: null,
+              results: raw as MonitoringExtraCount[],
+              total_extra: raw.reduce(
+                (s: number, i: MonitoringExtraCount) => s + (i?.count ?? 0),
+                0
+              ),
+            };
+          }
+          return {
+            count: raw?.count ?? 0,
+            next: raw?.next ?? null,
+            previous: raw?.previous ?? null,
+            results: Array.isArray(raw?.results) ? raw.results : [],
+            total_extra: raw?.total_extra ?? 0,
+          };
+        });
     },
     getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage.next) return undefined;
-      return allPages.reduce((sum, p) => sum + p.results.length, 0);
+      if (!lastPage?.next) return undefined;
+      return allPages.reduce(
+        (sum, p) => sum + (p?.results?.length ?? 0),
+        0
+      );
     },
     retry: false,
   });
 
   const items = useMemo<MonitoringExtraCount[]>(
-    () => data?.pages.flatMap((p) => p.results) ?? [],
+    () =>
+      data?.pages.flatMap((p) =>
+        Array.isArray(p?.results) ? p.results : []
+      ) ?? [],
     [data]
   );
   const totalCount = data?.pages[0]?.count ?? 0;
