@@ -698,7 +698,11 @@ export default function DrawsScreen() {
               onOpen={() =>
                 router.push({
                   pathname: "/draw/[id]",
-                  params: { id: String(item.id), name: item.name },
+                  params: {
+                    id: String(item.id),
+                    name: item.name,
+                    type: item.type || "default",
+                  },
                 })
               }
             />

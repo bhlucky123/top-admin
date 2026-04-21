@@ -51,6 +51,10 @@ export default function RootLayout() {
             options={{ headerShown: false }}
           />
           <Stack.Screen
+            name="draw/[id]/result"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
             name="extra-counts"
             options={{ headerShown: false }}
           />
