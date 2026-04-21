@@ -6,6 +6,7 @@ export type Vendor = {
   name: string;
   is_active: boolean;
   feature_codenames?: string[];
+  monitoring_enabled?: boolean;
   monitoring_single_digit_a_count?: number;
   monitoring_single_digit_b_count?: number;
   monitoring_single_digit_c_count?: number;
@@ -17,6 +18,7 @@ export type Vendor = {
 };
 
 type VendorMonitoringFields = {
+  monitoring_enabled?: boolean;
   monitoring_single_digit_a_count?: number;
   monitoring_single_digit_b_count?: number;
   monitoring_single_digit_c_count?: number;

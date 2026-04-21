@@ -21,6 +21,7 @@ import {
 
 type VendorFormData = {
   name: string;
+  monitoring_enabled: boolean;
   monitoring_single_digit_a_count: number;
   monitoring_single_digit_b_count: number;
   monitoring_single_digit_c_count: number;
@@ -44,6 +45,9 @@ function VendorForm({
   submitting: boolean;
 }) {
   const [name, setName] = useState(defaultValues?.name || "");
+  const [monitoringEnabled, setMonitoringEnabled] = useState<boolean>(
+    defaultValues?.monitoring_enabled ?? true
+  );
   const [singleA, setSingleA] = useState(
     String(defaultValues?.monitoring_single_digit_a_count ?? "")
   );
@@ -97,6 +101,7 @@ function VendorForm({
     if (!validate()) return;
     onSubmit({
       name: name.trim(),
+      monitoring_enabled: monitoringEnabled,
       monitoring_single_digit_a_count: Number(singleA || 0),
       monitoring_single_digit_b_count: Number(singleB || 0),
       monitoring_single_digit_c_count: Number(singleC || 0),
@@ -164,8 +169,53 @@ function VendorForm({
             )}
           </View>
 
-          {/* Monitoring Thresholds */}
+          {/* Monitoring Enable/Disable */}
           <View className="mb-6">
+            <TouchableOpacity
+              onPress={() => setMonitoringEnabled((v) => !v)}
+              activeOpacity={0.8}
+              className={`flex-row items-center justify-between px-4 py-4 rounded-xl border-2 ${
+                monitoringEnabled
+                  ? "bg-green-50 border-green-300"
+                  : "bg-gray-50 border-gray-200"
+              }`}
+            >
+              <View className="flex-row items-center flex-1 pr-3">
+                <Activity
+                  size={18}
+                  color={monitoringEnabled ? "#059669" : "#9CA3AF"}
+                />
+                <View className="ml-3 flex-1">
+                  <Text
+                    className={`font-semibold ${
+                      monitoringEnabled ? "text-green-700" : "text-gray-600"
+                    }`}
+                  >
+                    Extra-Count Monitoring
+                  </Text>
+                  <Text className="text-gray-500 text-xs mt-0.5">
+                    {monitoringEnabled
+                      ? "Extras will be marked for this vendor."
+                      : "No extras will be recorded for this vendor."}
+                  </Text>
+                </View>
+              </View>
+              <View
+                className={`w-12 h-6 rounded-full p-0.5 ${
+                  monitoringEnabled ? "bg-green-500" : "bg-gray-400"
+                }`}
+              >
+                <View
+                  className={`w-5 h-5 bg-white rounded-full ${
+                    monitoringEnabled ? "ml-auto" : ""
+                  }`}
+                />
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Monitoring Thresholds */}
+          <View className="mb-6" style={{ opacity: monitoringEnabled ? 1 : 0.5 }}>
             <View className="flex-row items-center mb-3 ml-1">
               <Activity size={16} color="#4F46E5" />
               <Text className="text-gray-700 font-semibold ml-2">
@@ -332,10 +382,29 @@ function VendorCard({
               <Text className={`text-lg font-bold ${item.is_active ? "text-gray-800" : "text-gray-400"}`}>
                 {item.name}
               </Text>
-              <View className={`mt-1 self-start px-2 py-0.5 rounded-full ${item.is_active ? "bg-green-50" : "bg-red-50"}`}>
-                <Text className={`text-xs font-semibold ${item.is_active ? "text-green-600" : "text-red-500"}`}>
-                  {item.is_active ? "Active" : "Inactive"}
-                </Text>
+              <View className="flex-row items-center gap-1.5 mt-1">
+                <View className={`self-start px-2 py-0.5 rounded-full ${item.is_active ? "bg-green-50" : "bg-red-50"}`}>
+                  <Text className={`text-xs font-semibold ${item.is_active ? "text-green-600" : "text-red-500"}`}>
+                    {item.is_active ? "Active" : "Inactive"}
+                  </Text>
+                </View>
+                <View
+                  className={`self-start flex-row items-center px-2 py-0.5 rounded-full ${
+                    item.monitoring_enabled ? "bg-indigo-50" : "bg-gray-100"
+                  }`}
+                >
+                  <Activity
+                    size={10}
+                    color={item.monitoring_enabled ? "#4F46E5" : "#9CA3AF"}
+                  />
+                  <Text
+                    className={`text-xs font-semibold ml-1 ${
+                      item.monitoring_enabled ? "text-indigo-600" : "text-gray-500"
+                    }`}
+                  >
+                    {item.monitoring_enabled ? "Monitor On" : "Monitor Off"}
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
