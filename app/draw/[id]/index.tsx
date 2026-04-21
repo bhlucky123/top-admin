@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   BarChart3,
   ChevronRight,
+  FileText,
   MoveLeft,
   Ticket,
   Trophy,
@@ -17,11 +18,28 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function DrawDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
+  const { id, name, type } = useLocalSearchParams<{
+    id: string;
+    name?: string;
+    type?: string;
+  }>();
   const drawId = String(id);
   const drawName = name || `Draw #${drawId}`;
+  const drawType = type || "default";
 
   const options = [
+    {
+      key: "result",
+      label: "Result",
+      description: "Publish, edit or share the winning result.",
+      icon: <FileText size={22} color="#059669" />,
+      bg: "bg-emerald-50",
+      onPress: () =>
+        router.push({
+          pathname: "/draw/[id]/result",
+          params: { id: drawId, name: drawName, type: drawType },
+        }),
+    },
     {
       key: "sales",
       label: "Sales Report",
