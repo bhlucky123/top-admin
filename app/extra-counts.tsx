@@ -44,6 +44,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const TYPES: MonitoringType[] = [
   "single_digit",
@@ -71,6 +72,7 @@ function PickerModal<T extends { id: number; name: string }>({
   onClose: () => void;
 }) {
   const [search, setSearch] = useState("");
+  const insets = useSafeAreaInsets();
   const filtered = items.filter((i) =>
     i.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -78,7 +80,12 @@ function PickerModal<T extends { id: number; name: string }>({
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <KeyboardAvoider style={styles.modalBackdrop}>
-        <View style={styles.modalSheet}>
+        <View
+          style={[
+            styles.modalSheet,
+            { paddingBottom: 24 + insets.bottom },
+          ]}
+        >
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{title}</Text>
             <TouchableOpacity onPress={onClose} style={styles.modalClose}>
@@ -261,6 +268,7 @@ const tableStyles = StyleSheet.create({
 
 export default function ExtraCountsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const params = useLocalSearchParams<{ drawId?: string; vendorId?: string }>();
   const initialDrawId = params.drawId ? Number(params.drawId) : null;
@@ -819,7 +827,7 @@ export default function ExtraCountsScreen() {
             renderItem={({ item, index }) => (
               <TableRow item={item} even={index % 2 === 0} />
             )}
-            contentContainerStyle={{ paddingBottom: 100 }}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
             refreshControl={
               <RefreshControl
                 refreshing={isFetching && !isFetchingNextPage}
@@ -1043,7 +1051,7 @@ export default function ExtraCountsScreen() {
                 gap: 10,
                 paddingHorizontal: 20,
                 paddingTop: 12,
-                paddingBottom: 20,
+                paddingBottom: 20 + insets.bottom,
                 borderTopWidth: 1,
                 borderTopColor: "#f1f5f9",
               }}

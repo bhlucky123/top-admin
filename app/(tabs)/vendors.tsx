@@ -3,7 +3,7 @@ import useVendor, { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { Activity, Building2, ChevronRight, MoveLeft, Plus, Search } from "lucide-react-native";
+import { Activity, Building2, ChevronRight, MoveLeft, Pencil, Plus, Search } from "lucide-react-native";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -353,76 +353,93 @@ function VendorForm({
 function VendorCard({
   item,
   onEdit,
-  onToggleActive,
   onPress,
 }: {
   item: Vendor;
   onEdit: () => void;
-  onToggleActive: () => void;
   onPress: () => void;
 }) {
+  const active = item.is_active;
   return (
     <TouchableOpacity
       onPress={onPress}
-      className="bg-white mx-4 mb-3 rounded-2xl border border-gray-100 overflow-hidden shadow-sm"
-      activeOpacity={0.7}
+      activeOpacity={0.85}
+      className="mx-4 mb-3 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
     >
-      <View className={`h-1 ${item.is_active ? "bg-indigo-500" : "bg-gray-300"}`} />
-      <View className="p-5">
-        <View className="flex-row items-center justify-between">
-          <View className="flex-row items-center flex-1">
-            <View className={`w-10 h-10 rounded-xl items-center justify-center mr-3 ${item.is_active ? "bg-indigo-50" : "bg-gray-100"}`}>
-              <Building2 size={18} color={item.is_active ? "#4F46E5" : "#9CA3AF"} />
-            </View>
-            <View>
-              <Text className={`text-lg font-bold ${item.is_active ? "text-gray-800" : "text-gray-400"}`}>
-                {item.name}
-              </Text>
-              <View className="flex-row items-center gap-1.5 mt-1">
-                <View className={`self-start px-2 py-0.5 rounded-full ${item.is_active ? "bg-green-50" : "bg-red-50"}`}>
-                  <Text className={`text-xs font-semibold ${item.is_active ? "text-green-600" : "text-red-500"}`}>
-                    {item.is_active ? "Active" : "Inactive"}
-                  </Text>
-                </View>
-                <View
-                  className={`self-start flex-row items-center px-2 py-0.5 rounded-full ${
-                    item.monitoring_enabled ? "bg-indigo-50" : "bg-gray-100"
-                  }`}
-                >
-                  <Activity
-                    size={10}
-                    color={item.monitoring_enabled ? "#4F46E5" : "#9CA3AF"}
-                  />
-                  <Text
-                    className={`text-xs font-semibold ml-1 ${
-                      item.monitoring_enabled ? "text-indigo-600" : "text-gray-500"
-                    }`}
-                  >
-                    {item.monitoring_enabled ? "Monitor On" : "Monitor Off"}
-                  </Text>
-                </View>
-              </View>
-            </View>
+      <View className={`h-1 ${active ? "bg-indigo-500" : "bg-gray-300"}`} />
+
+      <View className="p-4">
+        <View className="flex-row items-center">
+          <View
+            className={`w-12 h-12 rounded-xl items-center justify-center ${
+              active ? "bg-indigo-50" : "bg-gray-100"
+            }`}
+          >
+            <Building2 size={22} color={active ? "#4F46E5" : "#9CA3AF"} />
           </View>
 
-          <View className="flex-row items-center gap-2">
-            <TouchableOpacity
-              onPress={onEdit}
-              className="px-3 py-1.5 bg-gray-100 rounded-lg"
-              activeOpacity={0.7}
+          <View className="flex-1 ml-3 mr-2">
+            <Text
+              className={`text-base font-bold ${
+                active ? "text-gray-900" : "text-gray-500"
+              }`}
+              numberOfLines={1}
             >
-              <Text className="text-gray-700 text-sm font-medium">Edit</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={onToggleActive}
-              className={`px-3 py-1.5 rounded-lg ${item.is_active ? "bg-red-50" : "bg-green-50"}`}
-              activeOpacity={0.7}
+              {item.name}
+            </Text>
+            <Text className="text-gray-400 text-xs mt-0.5">ID: {item.id}</Text>
+          </View>
+
+          <TouchableOpacity
+            onPress={onEdit}
+            className="w-9 h-9 rounded-lg bg-gray-50 border border-gray-100 items-center justify-center"
+            activeOpacity={0.7}
+            hitSlop={8}
+          >
+            <Pencil size={14} color="#4B5563" />
+          </TouchableOpacity>
+          <ChevronRight
+            size={18}
+            color="#9CA3AF"
+            style={{ marginLeft: 4 }}
+          />
+        </View>
+
+        <View className="flex-row items-center flex-wrap gap-2 mt-3">
+          <View
+            className={`flex-row items-center px-2.5 py-1 rounded-full ${
+              active ? "bg-green-50" : "bg-red-50"
+            }`}
+          >
+            <View
+              className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                active ? "bg-green-500" : "bg-red-500"
+              }`}
+            />
+            <Text
+              className={`text-[11px] font-semibold ${
+                active ? "text-green-700" : "text-red-600"
+              }`}
             >
-              <Text className={`text-sm font-medium ${item.is_active ? "text-red-600" : "text-green-600"}`}>
-                {item.is_active ? "Deactivate" : "Activate"}
-              </Text>
-            </TouchableOpacity>
-            <ChevronRight size={18} color="#9CA3AF" />
+              {active ? "Active" : "Inactive"}
+            </Text>
+          </View>
+          <View
+            className={`flex-row items-center px-2.5 py-1 rounded-full ${
+              item.monitoring_enabled ? "bg-indigo-50" : "bg-gray-100"
+            }`}
+          >
+            <Activity
+              size={11}
+              color={item.monitoring_enabled ? "#4F46E5" : "#9CA3AF"}
+            />
+            <Text
+              className={`text-[11px] font-semibold ml-1 ${
+                item.monitoring_enabled ? "text-indigo-700" : "text-gray-500"
+              }`}
+            >
+              Monitoring {item.monitoring_enabled ? "On" : "Off"}
+            </Text>
           </View>
         </View>
       </View>
@@ -452,7 +469,7 @@ export default function VendorsScreen() {
     retry: false,
   });
 
-  const { createVendor, editVendor, toggleActive } = useVendor();
+  const { createVendor, editVendor } = useVendor();
 
   const filtered = vendors.filter((v) =>
     v.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -502,38 +519,6 @@ export default function VendorsScreen() {
           Alert.alert("Error", msg);
         },
       }
-    );
-  };
-
-  const handleToggleActive = (vendor: Vendor) => {
-    const action = vendor.is_active ? "Deactivate" : "Activate";
-    Alert.alert(
-      `${action} Vendor`,
-      `Are you sure you want to ${action.toLowerCase()} "${vendor.name}"?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: action,
-          style: vendor.is_active ? "destructive" : "default",
-          onPress: () => {
-            toggleActive(
-              { id: vendor.id, is_active: !vendor.is_active },
-              {
-                onSuccess: (updated) => {
-                  queryClient.setQueryData<Vendor[]>(["vendors"], (old) =>
-                    old?.map((v) => (v.id === updated.id ? updated : v)) || []
-                  );
-                },
-                onError: (err: any) => {
-                  const msg =
-                    typeof err?.message === "string" ? err.message : `Failed to ${action.toLowerCase()} vendor.`;
-                  Alert.alert("Error", msg);
-                },
-              }
-            );
-          },
-        },
-      ]
     );
   };
 
@@ -624,7 +609,6 @@ export default function VendorsScreen() {
                 setEditData(item);
                 setShowForm(true);
               }}
-              onToggleActive={() => handleToggleActive(item)}
               onPress={() =>
                 router.push({
                   pathname: "/vendor/[id]",

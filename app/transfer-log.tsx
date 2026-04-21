@@ -1,6 +1,7 @@
 import KeyboardAvoider from "@/components/keyboard-avoider";
 import { Draw } from "@/hooks/use-draw";
 import { MonitoringTransferLog } from "@/hooks/use-monitoring-actions";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SUB_TYPE_LABELS, TYPE_LABELS } from "@/hooks/use-monitoring-extra-count";
 import { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
@@ -62,6 +63,7 @@ function PickerModal<T extends { id: number; name: string }>({
   onClose: () => void;
 }) {
   const [search, setSearch] = useState("");
+  const insets = useSafeAreaInsets();
   const filtered = items.filter((i) =>
     i.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -69,7 +71,12 @@ function PickerModal<T extends { id: number; name: string }>({
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <KeyboardAvoider style={pickerStyles.modalBackdrop}>
-        <View style={pickerStyles.modalSheet}>
+        <View
+          style={[
+            pickerStyles.modalSheet,
+            { paddingBottom: 24 + insets.bottom },
+          ]}
+        >
           <View style={pickerStyles.modalHeader}>
             <Text style={pickerStyles.modalTitle}>{title}</Text>
             <TouchableOpacity onPress={onClose} style={pickerStyles.modalClose}>
@@ -258,6 +265,7 @@ function TableRow({
 
 export default function TransferLogScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [drawId, setDrawId] = useState<number | null>(null);
   const [date, setDate] = useState<Date | null>(null);
@@ -458,7 +466,7 @@ export default function TransferLogScreen() {
         <View style={{ flex: 1 }}>
           <TableHeader />
           <ScrollView
-            contentContainerStyle={{ paddingBottom: 100 }}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
             refreshControl={
               <RefreshControl
                 refreshing={isFetching}
