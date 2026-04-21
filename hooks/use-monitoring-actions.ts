@@ -12,6 +12,8 @@ type CopyAllFilters = {
   draw_session__session_date?: string;
   type?: MonitoringType;
   sub_type?: MonitoringSubType;
+  type__in?: string;
+  sub_type__in?: string;
 };
 
 type ClearBody = {
@@ -19,8 +21,8 @@ type ClearBody = {
   draw_id?: number;
   draw_session_id?: number;
   session_date?: string;
-  type?: MonitoringType;
-  sub_type?: MonitoringSubType;
+  type?: MonitoringType | MonitoringType[];
+  sub_type?: MonitoringSubType | MonitoringSubType[];
 };
 
 type TransferBody = { draw_id: number; vendor_ids?: number[] };

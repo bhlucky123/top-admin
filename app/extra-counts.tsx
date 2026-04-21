@@ -266,8 +266,8 @@ export default function ExtraCountsScreen() {
 
   const [vendorId, setVendorId] = useState<number | null>(initialVendorId);
   const [drawId, setDrawId] = useState<number | null>(initialDrawId);
-  const [type, setType] = useState<MonitoringType | null>(null);
-  const [subType, setSubType] = useState<MonitoringSubType | null>(null);
+  const [types, setTypes] = useState<MonitoringType[]>([]);
+  const [subTypes, setSubTypes] = useState<MonitoringSubType[]>([]);
 
   const [showVendorPicker, setShowVendorPicker] = useState(false);
   const [showDrawPicker, setShowDrawPicker] = useState(false);
@@ -288,10 +288,38 @@ export default function ExtraCountsScreen() {
     retry: false,
   });
 
+  const typesKey = [...types].sort().join(",");
+  const subTypesKey = [...subTypes].sort().join(",");
+
   const queryKey = useMemo(
-    () => ["extra-counts", vendorId, drawId, type, subType],
-    [vendorId, drawId, type, subType]
+    () => ["extra-counts", vendorId, drawId, typesKey, subTypesKey],
+    [vendorId, drawId, typesKey, subTypesKey]
   );
+
+  const toggleType = (t: MonitoringType) => {
+    setTypes((prev) =>
+      prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
+    );
+    // Prune sub-types that wouldn't be valid under the new type selection.
+    setSubTypes((prev) => {
+      if (prev.length === 0) return prev;
+      const nextTypes = types.includes(t)
+        ? types.filter((x) => x !== t)
+        : [...types, t];
+      if (nextTypes.length === 0) return prev; // no type filter → any sub allowed
+      const allowed = new Set<MonitoringSubType>();
+      nextTypes.forEach((nt) =>
+        SUB_TYPES_BY_TYPE[nt].forEach((st) => allowed.add(st))
+      );
+      return prev.filter((st) => allowed.has(st));
+    });
+  };
+
+  const toggleSubType = (st: MonitoringSubType) => {
+    setSubTypes((prev) =>
+      prev.includes(st) ? prev.filter((x) => x !== st) : [...prev, st]
+    );
+  };
 
   const PAGE_SIZE = 50;
 
@@ -322,8 +350,8 @@ export default function ExtraCountsScreen() {
       };
       if (vendorId) params.vendor__id = vendorId;
       if (drawId) params.draw_session__draw__id = drawId;
-      if (type) params.type = type;
-      if (subType) params.sub_type = subType;
+      if (types.length) params.type__in = types.join(",");
+      if (subTypes.length) params.sub_type__in = subTypes.join(",");
       return api
         .get("/draw-monitoring/extra-count/", { params })
         .then((r) => {
@@ -372,18 +400,26 @@ export default function ExtraCountsScreen() {
 
   const vendorName = vendors.find((v) => v.id === vendorId)?.name;
   const drawName = draws.find((d) => d.id === drawId)?.name;
-  const hasFilters = !!vendorId || !!drawId || !!type || !!subType;
+  const hasFilters =
+    !!vendorId || !!drawId || types.length > 0 || subTypes.length > 0;
 
   const clearAll = () => {
     setVendorId(null);
     setDrawId(null);
-    setType(null);
-    setSubType(null);
+    setTypes([]);
+    setSubTypes([]);
   };
 
-  const visibleSubTypes: MonitoringSubType[] = type
-    ? SUB_TYPES_BY_TYPE[type]
-    : ALL_SUB_TYPES;
+  // Sub-types visible for toggling: when no type selected, all are visible;
+  // otherwise union of sub-types valid for the selected types.
+  const visibleSubTypes: MonitoringSubType[] = useMemo(() => {
+    if (types.length === 0) return ALL_SUB_TYPES;
+    const set = new Set<MonitoringSubType>();
+    types.forEach((t) =>
+      SUB_TYPES_BY_TYPE[t].forEach((st) => set.add(st))
+    );
+    return ALL_SUB_TYPES.filter((st) => set.has(st));
+  }, [types]);
 
   const queryClient = useQueryClient();
   const { copyAll, clear, transferAll } = useMonitoringActions();
@@ -393,8 +429,8 @@ export default function ExtraCountsScreen() {
       const params: Record<string, any> = {};
       if (vendorId) params.vendor__id = vendorId;
       if (drawId) params.draw_session__draw__id = drawId;
-      if (type) params.type = type;
-      if (subType) params.sub_type = subType;
+      if (types.length) params.type__in = types.join(",");
+      if (subTypes.length) params.sub_type__in = subTypes.join(",");
       const lines = await copyAll.mutateAsync(params);
       if (!lines.length) {
         Alert.alert("Nothing to copy", "No extra-count entries match the current filters.");
@@ -416,8 +452,14 @@ export default function ExtraCountsScreen() {
     const parts: string[] = [];
     if (vendorName) parts.push(`vendor "${vendorName}"`);
     if (drawName) parts.push(`draw "${drawName}"`);
-    if (type) parts.push(`type ${TYPE_LABELS[type]}`);
-    if (subType) parts.push(`sub-type ${SUB_TYPE_LABELS[subType]}`);
+    if (types.length)
+      parts.push(
+        `type ${types.map((t) => TYPE_LABELS[t]).join("/")}`
+      );
+    if (subTypes.length)
+      parts.push(
+        `sub-type ${subTypes.map((st) => SUB_TYPE_LABELS[st]).join("/")}`
+      );
     const scope = parts.length
       ? parts.join(", ")
       : "today's active session";
@@ -433,8 +475,8 @@ export default function ExtraCountsScreen() {
             const body: Record<string, any> = {};
             if (vendorId) body.vendor_id = vendorId;
             if (drawId) body.draw_id = drawId;
-            if (type) body.type = type;
-            if (subType) body.sub_type = subType;
+            if (types.length) body.type = types;
+            if (subTypes.length) body.sub_type = subTypes;
             clear.mutate(body, {
               onSuccess: (res) => {
                 queryClient.invalidateQueries({ queryKey: ["extra-counts"] });
@@ -579,44 +621,45 @@ export default function ExtraCountsScreen() {
           onPress={() => setShowDrawPicker(true)}
         />
 
-        <Text className="text-gray-400 text-xs font-semibold mt-1">Type</Text>
+        <Text className="text-gray-400 text-xs font-semibold mt-1">
+          Type {types.length > 0 ? `(${types.length})` : ""}
+        </Text>
         <View className="flex-row flex-wrap gap-2">
           <TouchableOpacity
             onPress={() => {
-              setType(null);
-              setSubType(null);
+              setTypes([]);
+              setSubTypes([]);
             }}
-            className={`px-3 py-1.5 rounded-lg border ${!type
-              ? "bg-indigo-50 border-indigo-300"
-              : "bg-white border-gray-200"
-              }`}
+            className={`px-3 py-1.5 rounded-lg border ${
+              types.length === 0
+                ? "bg-indigo-50 border-indigo-300"
+                : "bg-white border-gray-200"
+            }`}
           >
             <Text
-              className={`text-xs font-semibold ${!type ? "text-indigo-700" : "text-gray-600"
-                }`}
+              className={`text-xs font-semibold ${
+                types.length === 0 ? "text-indigo-700" : "text-gray-600"
+              }`}
             >
               All
             </Text>
           </TouchableOpacity>
           {TYPES.map((t) => {
-            const active = type === t;
+            const active = types.includes(t);
             return (
               <TouchableOpacity
                 key={t}
-                onPress={() => {
-                  setType(t);
-                  if (subType && !SUB_TYPES_BY_TYPE[t].includes(subType)) {
-                    setSubType(null);
-                  }
-                }}
-                className={`px-3 py-1.5 rounded-lg border ${active
-                  ? "bg-indigo-50 border-indigo-300"
-                  : "bg-white border-gray-200"
-                  }`}
+                onPress={() => toggleType(t)}
+                className={`px-3 py-1.5 rounded-lg border ${
+                  active
+                    ? "bg-indigo-50 border-indigo-300"
+                    : "bg-white border-gray-200"
+                }`}
               >
                 <Text
-                  className={`text-xs font-semibold ${active ? "text-indigo-700" : "text-gray-600"
-                    }`}
+                  className={`text-xs font-semibold ${
+                    active ? "text-indigo-700" : "text-gray-600"
+                  }`}
                 >
                   {TYPE_LABELS[t]}
                 </Text>
@@ -626,36 +669,40 @@ export default function ExtraCountsScreen() {
         </View>
 
         <Text className="text-gray-400 text-xs font-semibold mt-2">
-          Sub-type
+          Sub-type {subTypes.length > 0 ? `(${subTypes.length})` : ""}
         </Text>
         <View className="flex-row flex-wrap gap-2">
           <TouchableOpacity
-            onPress={() => setSubType(null)}
-            className={`px-3 py-1.5 rounded-lg border ${!subType
-              ? "bg-indigo-50 border-indigo-300"
-              : "bg-white border-gray-200"
-              }`}
+            onPress={() => setSubTypes([])}
+            className={`px-3 py-1.5 rounded-lg border ${
+              subTypes.length === 0
+                ? "bg-indigo-50 border-indigo-300"
+                : "bg-white border-gray-200"
+            }`}
           >
             <Text
-              className={`text-xs font-semibold ${!subType ? "text-indigo-700" : "text-gray-600"
-                }`}
+              className={`text-xs font-semibold ${
+                subTypes.length === 0 ? "text-indigo-700" : "text-gray-600"
+              }`}
             >
               All
             </Text>
           </TouchableOpacity>
           {visibleSubTypes.map((st) => {
-            const active = subType === st;
+            const active = subTypes.includes(st);
             return (
               <TouchableOpacity
                 key={st}
-                onPress={() => setSubType(st)}
-                className={`px-3 py-1.5 rounded-lg border ${active
-                  ? "bg-indigo-50 border-indigo-300"
-                  : "bg-white border-gray-200"
-                  }`}
+                onPress={() => toggleSubType(st)}
+                className={`px-3 py-1.5 rounded-lg border ${
+                  active
+                    ? "bg-indigo-50 border-indigo-300"
+                    : "bg-white border-gray-200"
+                }`}
               >
                 <Text
-                  className={`text-xs font-semibold ${active ? "text-indigo-700" : "text-gray-600"
+                  className={`text-xs font-semibold ${
+                    active ? "text-indigo-700" : "text-gray-600"
                     }`}
                 >
                   {SUB_TYPE_LABELS[st]}
