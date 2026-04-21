@@ -6,28 +6,35 @@ export type Vendor = {
   name: string;
   is_active: boolean;
   feature_codenames?: string[];
-  monitoring_single_digit_count?: number;
-  monitoring_double_digit_count?: number;
+  monitoring_single_digit_a_count?: number;
+  monitoring_single_digit_b_count?: number;
+  monitoring_single_digit_c_count?: number;
+  monitoring_double_digit_ab_count?: number;
+  monitoring_double_digit_bc_count?: number;
+  monitoring_double_digit_ac_count?: number;
   monitoring_triple_digit_super_count?: number;
   monitoring_triple_digit_box_count?: number;
 };
 
-type CreateVendorParams = {
-  name: string;
-  is_active?: boolean;
-  monitoring_single_digit_count?: number;
-  monitoring_double_digit_count?: number;
+type VendorMonitoringFields = {
+  monitoring_single_digit_a_count?: number;
+  monitoring_single_digit_b_count?: number;
+  monitoring_single_digit_c_count?: number;
+  monitoring_double_digit_ab_count?: number;
+  monitoring_double_digit_bc_count?: number;
+  monitoring_double_digit_ac_count?: number;
   monitoring_triple_digit_super_count?: number;
   monitoring_triple_digit_box_count?: number;
 };
-type EditVendorParams = {
+
+type CreateVendorParams = VendorMonitoringFields & {
+  name: string;
+  is_active?: boolean;
+};
+type EditVendorParams = VendorMonitoringFields & {
   id: number;
   name?: string;
   is_active?: boolean;
-  monitoring_single_digit_count?: number;
-  monitoring_double_digit_count?: number;
-  monitoring_triple_digit_super_count?: number;
-  monitoring_triple_digit_box_count?: number;
 };
 type ToggleActiveParams = { id: number; is_active: boolean };
 
