@@ -74,17 +74,6 @@ export default function VendorDetailScreen() {
       ),
   });
 
-  // Fetch vendor's prize config
-  const {
-    data: prizeConfig,
-    isLoading: configLoading,
-  } = useQuery<any>({
-    queryKey: ["vendor-config", vendorId],
-    queryFn: () =>
-      api.get(`/administrator/prize-configuration/${vendorId}/`).then((r) => r.data),
-    retry: false,
-  });
-
   // Fetch vendor's assigned features
   const {
     data: vendorFeatures = [],
@@ -659,63 +648,6 @@ export default function VendorDetailScreen() {
           </View>
         </View>
 
-        {/* Prize Config Summary */}
-        {prizeConfig && (
-          <View className="mx-5 mt-6">
-            <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-lg font-bold text-gray-800">
-                Prize Config
-              </Text>
-              <TouchableOpacity
-                onPress={() =>
-                  router.push({
-                    pathname: "/vendor-config/[id]",
-                    params: { id: String(vendorId) },
-                  })
-                }
-              >
-                <Text className="text-indigo-600 text-sm font-semibold">
-                  Edit
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-              <View className="flex-row flex-wrap gap-3">
-                {[
-                  { label: "Commission", value: prizeConfig.default_dealer_commission },
-                  { label: "Single Digit", value: prizeConfig.single_digit_prize },
-                  { label: "Double Digit", value: prizeConfig.double_digit_prize },
-                  { label: "Box Direct", value: prizeConfig.box_direct },
-                  { label: "KL 1st Prize", value: prizeConfig.kl_first_prize },
-                  { label: "KL 2nd Prize", value: prizeConfig.kl_second_prize },
-                ].map((item) => (
-                  <View
-                    key={item.label}
-                    className="bg-gray-50 px-3 py-2 rounded-lg"
-                    style={{ width: "47%" }}
-                  >
-                    <Text className="text-gray-400 text-xs">{item.label}</Text>
-                    <Text className="text-gray-800 font-bold text-sm">
-                      {item.value ?? "N/A"}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-              <View className="flex-row items-center mt-3">
-                <View
-                  className={`w-2.5 h-2.5 rounded-full mr-2 ${
-                    prizeConfig.is_active ? "bg-green-500" : "bg-red-500"
-                  }`}
-                />
-                <Text className="text-gray-500 text-xs">
-                  App Status:{" "}
-                  {prizeConfig.is_active ? "Active" : "Inactive"}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
       </ScrollView>
 
       {/* Feature Assignment Modal */}
