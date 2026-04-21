@@ -2,18 +2,10 @@ import useVendorDraw, { VendorDraw } from "@/hooks/use-vendor-draw";
 import useVendorFeature, { VendorFeature } from "@/hooks/use-vendor-feature";
 import { Admin } from "@/hooks/use-staff";
 import { Vendor } from "@/hooks/use-vendor";
-import {
-  MonitoringExtraCount,
-  MonitoringType,
-  SUB_TYPE_LABELS,
-  TYPE_LABELS,
-} from "@/hooks/use-monitoring-extra-count";
 import api from "@/utils/axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
-  Activity,
-  AlertTriangle,
   Building2,
   Check,
   ChevronRight,
@@ -117,25 +109,6 @@ export default function VendorDetailScreen() {
       api.get(`/administrator/vendors/${vendorId}/`).then((r) => r.data),
   });
 
-  // Extra-count filter state
-  const [extraType, setExtraType] = useState<MonitoringType | null>(null);
-
-  const {
-    data: extraCounts = [],
-    isLoading: extrasLoading,
-    refetch: refetchExtras,
-  } = useQuery<MonitoringExtraCount[]>({
-    queryKey: ["vendor-extras", vendorId, extraType],
-    queryFn: () => {
-      const params: Record<string, any> = { vendor__id: vendorId };
-      if (extraType) params.type = extraType;
-      return api
-        .get("/draw-monitoring/extra-count/", { params })
-        .then((r) => r.data);
-    },
-    retry: false,
-  });
-
   const { assignFeatures, isAssigningFeatures } = useVendorFeature();
   const { assignDraw, unassignDraw, isAssigning } = useVendorDraw();
 
@@ -203,15 +176,8 @@ export default function VendorDetailScreen() {
     refetchVD();
     refetchAdmins();
     refetchFeatures();
-    refetchExtras();
     queryClient.invalidateQueries({ queryKey: ["vendor", vendorId] });
   };
-
-  const TYPES: MonitoringType[] = [
-    "single_digit",
-    "double_digit",
-    "triple_digit",
-  ];
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -493,27 +459,84 @@ export default function VendorDetailScreen() {
             </Text>
           </View>
           <View className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+            <Text className="text-gray-500 text-xs font-semibold mb-2">
+              Single Digit
+            </Text>
+            <View className="flex-row flex-wrap gap-3 mb-4">
+              {[
+                {
+                  label: "A",
+                  value: vendorDetail?.monitoring_single_digit_a_count,
+                },
+                {
+                  label: "B",
+                  value: vendorDetail?.monitoring_single_digit_b_count,
+                },
+                {
+                  label: "C",
+                  value: vendorDetail?.monitoring_single_digit_c_count,
+                },
+              ].map((item) => (
+                <View
+                  key={`single-${item.label}`}
+                  className="bg-gray-50 px-3 py-2 rounded-lg"
+                  style={{ width: "30%" }}
+                >
+                  <Text className="text-gray-400 text-xs">{item.label}</Text>
+                  <Text className="text-gray-800 font-bold text-sm">
+                    {item.value ?? 0}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <Text className="text-gray-500 text-xs font-semibold mb-2">
+              Double Digit
+            </Text>
+            <View className="flex-row flex-wrap gap-3 mb-4">
+              {[
+                {
+                  label: "AB",
+                  value: vendorDetail?.monitoring_double_digit_ab_count,
+                },
+                {
+                  label: "BC",
+                  value: vendorDetail?.monitoring_double_digit_bc_count,
+                },
+                {
+                  label: "AC",
+                  value: vendorDetail?.monitoring_double_digit_ac_count,
+                },
+              ].map((item) => (
+                <View
+                  key={`double-${item.label}`}
+                  className="bg-gray-50 px-3 py-2 rounded-lg"
+                  style={{ width: "30%" }}
+                >
+                  <Text className="text-gray-400 text-xs">{item.label}</Text>
+                  <Text className="text-gray-800 font-bold text-sm">
+                    {item.value ?? 0}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <Text className="text-gray-500 text-xs font-semibold mb-2">
+              Triple Digit
+            </Text>
             <View className="flex-row flex-wrap gap-3">
               {[
                 {
-                  label: "Single Digit",
-                  value: vendorDetail?.monitoring_single_digit_count,
-                },
-                {
-                  label: "Double Digit",
-                  value: vendorDetail?.monitoring_double_digit_count,
-                },
-                {
-                  label: "Triple Super",
+                  label: "Super",
                   value: vendorDetail?.monitoring_triple_digit_super_count,
                 },
                 {
-                  label: "Triple Box",
+                  label: "Box",
                   value: vendorDetail?.monitoring_triple_digit_box_count,
                 },
               ].map((item) => (
                 <View
-                  key={item.label}
+                  key={`triple-${item.label}`}
                   className="bg-gray-50 px-3 py-2 rounded-lg"
                   style={{ width: "47%" }}
                 >
@@ -525,144 +548,6 @@ export default function VendorDetailScreen() {
               ))}
             </View>
           </View>
-        </View>
-
-        {/* Extra Counts */}
-        <View className="mx-5 mt-6">
-          <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-lg font-bold text-gray-800">
-              Extra Counts
-            </Text>
-            <View className="bg-indigo-50 px-2.5 py-1 rounded-md">
-              <Text className="text-indigo-600 text-xs font-bold">
-                {extraCounts.length}
-              </Text>
-            </View>
-          </View>
-
-          <View className="flex-row flex-wrap gap-2 mb-3">
-            <TouchableOpacity
-              onPress={() => setExtraType(null)}
-              className={`px-3 py-1.5 rounded-lg border ${
-                !extraType
-                  ? "bg-indigo-50 border-indigo-300"
-                  : "bg-white border-gray-200"
-              }`}
-            >
-              <Text
-                className={`text-xs font-semibold ${
-                  !extraType ? "text-indigo-700" : "text-gray-600"
-                }`}
-              >
-                All
-              </Text>
-            </TouchableOpacity>
-            {TYPES.map((t) => {
-              const active = extraType === t;
-              return (
-                <TouchableOpacity
-                  key={t}
-                  onPress={() => setExtraType(t)}
-                  className={`px-3 py-1.5 rounded-lg border ${
-                    active
-                      ? "bg-indigo-50 border-indigo-300"
-                      : "bg-white border-gray-200"
-                  }`}
-                >
-                  <Text
-                    className={`text-xs font-semibold ${
-                      active ? "text-indigo-700" : "text-gray-600"
-                    }`}
-                  >
-                    {TYPE_LABELS[t]}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {extrasLoading ? (
-            <View className="bg-white rounded-2xl p-6 items-center">
-              <ActivityIndicator size="small" color="#4F46E5" />
-            </View>
-          ) : extraCounts.length === 0 ? (
-            <View className="bg-white rounded-2xl p-6 items-center border border-gray-100">
-              <Activity size={32} color="#D1D5DB" />
-              <Text className="text-gray-400 mt-2 text-sm">
-                No extra-count records
-              </Text>
-            </View>
-          ) : (
-            <View className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              {extraCounts.map((ec, index) => (
-                <View
-                  key={ec.id}
-                  className={`px-5 py-4 ${
-                    index < extraCounts.length - 1
-                      ? "border-b border-gray-100"
-                      : ""
-                  }`}
-                >
-                  <View className="flex-row items-center justify-between mb-2">
-                    <View className="flex-row items-center flex-1">
-                      <View
-                        className="w-9 h-9 rounded-lg items-center justify-center mr-3"
-                        style={{ backgroundColor: "#FEE2E2" }}
-                      >
-                        <AlertTriangle size={16} color="#DC2626" />
-                      </View>
-                      <View className="flex-1">
-                        <Text className="text-gray-800 font-semibold text-sm">
-                          {ec.draw_name || `Draw #${ec.draw_session}`}
-                        </Text>
-                        <Text className="text-gray-400 text-xs mt-0.5">
-                          {ec.session_date}
-                        </Text>
-                      </View>
-                    </View>
-                    <View className="flex-row gap-1.5">
-                      <View
-                        className="px-2 py-0.5 rounded-md"
-                        style={{ backgroundColor: "#EEF2FF" }}
-                      >
-                        <Text
-                          className="text-xs font-semibold"
-                          style={{ color: "#4338CA" }}
-                        >
-                          {TYPE_LABELS[ec.type]}
-                        </Text>
-                      </View>
-                      <View
-                        className="px-2 py-0.5 rounded-md"
-                        style={{ backgroundColor: "#FEE2E2" }}
-                      >
-                        <Text
-                          className="text-xs font-semibold"
-                          style={{ color: "#B91C1C" }}
-                        >
-                          {SUB_TYPE_LABELS[ec.sub_type]}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                  <View className="flex-row items-center justify-between bg-gray-50 rounded-md px-3 py-2">
-                    <View className="flex-row items-center">
-                      <Text className="text-gray-400 text-xs mr-2">Number</Text>
-                      <Text className="text-gray-900 font-bold text-base tracking-wider">
-                        {ec.number}
-                      </Text>
-                    </View>
-                    <View className="items-end">
-                      <Text className="text-gray-400 text-xs">Extra</Text>
-                      <Text className="text-red-600 font-bold text-base">
-                        ×{ec.count}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
         </View>
 
         {/* Prize Config Summary */}

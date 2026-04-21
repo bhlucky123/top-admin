@@ -21,8 +21,12 @@ import {
 
 type VendorFormData = {
   name: string;
-  monitoring_single_digit_count: number;
-  monitoring_double_digit_count: number;
+  monitoring_single_digit_a_count: number;
+  monitoring_single_digit_b_count: number;
+  monitoring_single_digit_c_count: number;
+  monitoring_double_digit_ab_count: number;
+  monitoring_double_digit_bc_count: number;
+  monitoring_double_digit_ac_count: number;
   monitoring_triple_digit_super_count: number;
   monitoring_triple_digit_box_count: number;
 };
@@ -40,11 +44,23 @@ function VendorForm({
   submitting: boolean;
 }) {
   const [name, setName] = useState(defaultValues?.name || "");
-  const [single, setSingle] = useState(
-    String(defaultValues?.monitoring_single_digit_count ?? "")
+  const [singleA, setSingleA] = useState(
+    String(defaultValues?.monitoring_single_digit_a_count ?? "")
   );
-  const [double, setDouble] = useState(
-    String(defaultValues?.monitoring_double_digit_count ?? "")
+  const [singleB, setSingleB] = useState(
+    String(defaultValues?.monitoring_single_digit_b_count ?? "")
+  );
+  const [singleC, setSingleC] = useState(
+    String(defaultValues?.monitoring_single_digit_c_count ?? "")
+  );
+  const [doubleAB, setDoubleAB] = useState(
+    String(defaultValues?.monitoring_double_digit_ab_count ?? "")
+  );
+  const [doubleBC, setDoubleBC] = useState(
+    String(defaultValues?.monitoring_double_digit_bc_count ?? "")
+  );
+  const [doubleAC, setDoubleAC] = useState(
+    String(defaultValues?.monitoring_double_digit_ac_count ?? "")
   );
   const [superCount, setSuperCount] = useState(
     String(defaultValues?.monitoring_triple_digit_super_count ?? "")
@@ -58,8 +74,12 @@ function VendorForm({
     const e: { [k: string]: string } = {};
     if (!name.trim()) e.name = "Vendor name is required";
     ([
-      { key: "single", value: single },
-      { key: "double", value: double },
+      { key: "singleA", value: singleA },
+      { key: "singleB", value: singleB },
+      { key: "singleC", value: singleC },
+      { key: "doubleAB", value: doubleAB },
+      { key: "doubleBC", value: doubleBC },
+      { key: "doubleAC", value: doubleAC },
       { key: "super", value: superCount },
       { key: "box", value: box },
     ] as const).forEach(({ key, value }) => {
@@ -77,8 +97,12 @@ function VendorForm({
     if (!validate()) return;
     onSubmit({
       name: name.trim(),
-      monitoring_single_digit_count: Number(single || 0),
-      monitoring_double_digit_count: Number(double || 0),
+      monitoring_single_digit_a_count: Number(singleA || 0),
+      monitoring_single_digit_b_count: Number(singleB || 0),
+      monitoring_single_digit_c_count: Number(singleC || 0),
+      monitoring_double_digit_ab_count: Number(doubleAB || 0),
+      monitoring_double_digit_bc_count: Number(doubleBC || 0),
+      monitoring_double_digit_ac_count: Number(doubleAC || 0),
       monitoring_triple_digit_super_count: Number(superCount || 0),
       monitoring_triple_digit_box_count: Number(box || 0),
     });
@@ -153,39 +177,85 @@ function VendorForm({
               exceed these counts.
             </Text>
 
+            <Text className="text-gray-600 text-xs font-semibold mt-1 mb-2 ml-1">
+              Single Digit (per sub_type)
+            </Text>
+            <View className="flex-row flex-wrap mb-4" style={{ gap: 12 }}>
+              {(
+                [
+                  { key: "singleA", label: "A", value: singleA, set: setSingleA },
+                  { key: "singleB", label: "B", value: singleB, set: setSingleB },
+                  { key: "singleC", label: "C", value: singleC, set: setSingleC },
+                ] as const
+              ).map((f) => (
+                <View key={f.key} style={{ width: "30%", flexGrow: 1 }}>
+                  <Text className="text-gray-500 text-xs font-semibold mb-1.5 ml-1">
+                    {f.label}
+                  </Text>
+                  <TextInput
+                    className={`border-2 rounded-xl px-4 py-3 bg-white text-gray-800 font-medium ${
+                      errors[f.key] ? "border-red-300 bg-red-50" : "border-gray-200"
+                    }`}
+                    placeholder="0"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="numeric"
+                    value={f.value}
+                    onChangeText={(t) => f.set(t.replace(/[^0-9]/g, ""))}
+                  />
+                  {errors[f.key] && (
+                    <Text className="text-red-500 text-xs mt-1 ml-1">
+                      {errors[f.key]}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
+
+            <Text className="text-gray-600 text-xs font-semibold mb-2 ml-1">
+              Double Digit (per sub_type)
+            </Text>
+            <View className="flex-row flex-wrap mb-4" style={{ gap: 12 }}>
+              {(
+                [
+                  { key: "doubleAB", label: "AB", value: doubleAB, set: setDoubleAB },
+                  { key: "doubleBC", label: "BC", value: doubleBC, set: setDoubleBC },
+                  { key: "doubleAC", label: "AC", value: doubleAC, set: setDoubleAC },
+                ] as const
+              ).map((f) => (
+                <View key={f.key} style={{ width: "30%", flexGrow: 1 }}>
+                  <Text className="text-gray-500 text-xs font-semibold mb-1.5 ml-1">
+                    {f.label}
+                  </Text>
+                  <TextInput
+                    className={`border-2 rounded-xl px-4 py-3 bg-white text-gray-800 font-medium ${
+                      errors[f.key] ? "border-red-300 bg-red-50" : "border-gray-200"
+                    }`}
+                    placeholder="0"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="numeric"
+                    value={f.value}
+                    onChangeText={(t) => f.set(t.replace(/[^0-9]/g, ""))}
+                  />
+                  {errors[f.key] && (
+                    <Text className="text-red-500 text-xs mt-1 ml-1">
+                      {errors[f.key]}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
+
+            <Text className="text-gray-600 text-xs font-semibold mb-2 ml-1">
+              Triple Digit
+            </Text>
             <View className="flex-row flex-wrap" style={{ gap: 12 }}>
               {(
                 [
-                  {
-                    key: "single",
-                    label: "Single Digit",
-                    value: single,
-                    set: setSingle,
-                  },
-                  {
-                    key: "double",
-                    label: "Double Digit",
-                    value: double,
-                    set: setDouble,
-                  },
-                  {
-                    key: "super",
-                    label: "Triple Super",
-                    value: superCount,
-                    set: setSuperCount,
-                  },
-                  {
-                    key: "box",
-                    label: "Triple Box",
-                    value: box,
-                    set: setBox,
-                  },
+                  { key: "super", label: "Super", value: superCount, set: setSuperCount },
+                  { key: "box", label: "Box", value: box, set: setBox },
                 ] as const
               ).map((f) => (
-                <View
-                  key={f.key}
-                  style={{ width: "47%", flexGrow: 1 }}
-                >
+                <View key={f.key} style={{ width: "47%", flexGrow: 1 }}>
                   <Text className="text-gray-500 text-xs font-semibold mb-1.5 ml-1">
                     {f.label}
                   </Text>

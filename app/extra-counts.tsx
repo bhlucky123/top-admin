@@ -14,7 +14,7 @@ import api from "@/utils/axios";
 import { AntDesign } from "@expo/vector-icons";
 import Clipboard from "@react-native-clipboard/clipboard";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   Activity,
@@ -301,16 +301,33 @@ export default function ExtraCountsScreen() {
     [vendorId, drawId, date, type, subType]
   );
 
+  const PAGE_SIZE = 50;
+
+  type ExtraCountPage = {
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: MonitoringExtraCount[];
+    total_extra: number;
+  };
+
   const {
-    data: items = [],
+    data,
     isLoading,
     isFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
     isError,
     refetch,
-  } = useQuery<MonitoringExtraCount[]>({
+  } = useInfiniteQuery<ExtraCountPage>({
     queryKey,
-    queryFn: () => {
-      const params: Record<string, any> = {};
+    initialPageParam: 0,
+    queryFn: ({ pageParam = 0 }) => {
+      const params: Record<string, any> = {
+        limit: PAGE_SIZE,
+        offset: pageParam,
+      };
       if (vendorId) params.vendor__id = vendorId;
       if (drawId) params.draw_session__draw__id = drawId;
       if (date) params.draw_session__session_date = date.toISOString().split("T")[0];
@@ -320,8 +337,19 @@ export default function ExtraCountsScreen() {
         .get("/draw-monitoring/extra-count/", { params })
         .then((r) => r.data);
     },
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage.next) return undefined;
+      return allPages.reduce((sum, p) => sum + p.results.length, 0);
+    },
     retry: false,
   });
+
+  const items = useMemo<MonitoringExtraCount[]>(
+    () => data?.pages.flatMap((p) => p.results) ?? [],
+    [data]
+  );
+  const totalCount = data?.pages[0]?.count ?? 0;
+  const totalExtraFromServer = data?.pages[0]?.total_extra ?? 0;
 
   const vendorName = vendors.find((v) => v.id === vendorId)?.name;
   const drawName = draws.find((d) => d.id === drawId)?.name;
@@ -339,8 +367,6 @@ export default function ExtraCountsScreen() {
   const visibleSubTypes: MonitoringSubType[] = type
     ? SUB_TYPES_BY_TYPE[type]
     : ALL_SUB_TYPES;
-
-  const totalExtra = items.reduce((sum, i) => sum + i.count, 0);
 
   const queryClient = useQueryClient();
   const { copyAll, clear, transferAll } = useMonitoringActions();
@@ -368,7 +394,7 @@ export default function ExtraCountsScreen() {
   };
 
   const handleClear = () => {
-    if (!items.length) {
+    if (!totalCount) {
       Alert.alert("Nothing to clear", "No extra-count entries match the current filters.");
       return;
     }
@@ -599,13 +625,15 @@ export default function ExtraCountsScreen() {
             <View className="px-3 py-1.5 rounded-lg bg-gray-100">
               <Text className="text-gray-500 text-xs">
                 Records{" "}
-                <Text className="text-gray-800 font-bold">{items.length}</Text>
+                <Text className="text-gray-800 font-bold">{totalCount}</Text>
               </Text>
             </View>
             <View className="px-3 py-1.5 rounded-lg bg-red-50">
               <Text className="text-red-500 text-xs">
                 Extra Total{" "}
-                <Text className="text-red-700 font-bold">{totalExtra}</Text>
+                <Text className="text-red-700 font-bold">
+                  {totalExtraFromServer}
+                </Text>
               </Text>
             </View>
           </View>
@@ -680,21 +708,41 @@ export default function ExtraCountsScreen() {
       ) : (
         <View style={{ flex: 1, marginLeft: 14, marginRight: 14 }}>
           <TableHeader />
-          <ScrollView
+          <FlatList
+            data={items}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item, index }) => (
+              <TableRow item={item} even={index % 2 === 0} />
+            )}
             contentContainerStyle={{ paddingBottom: 100 }}
             refreshControl={
               <RefreshControl
-                refreshing={isFetching}
+                refreshing={isFetching && !isFetchingNextPage}
                 onRefresh={refetch}
                 colors={["#4F46E5"]}
                 tintColor="#4F46E5"
               />
             }
-          >
-            {items.map((item, index) => (
-              <TableRow key={item.id} item={item} even={index % 2 === 0} />
-            ))}
-          </ScrollView>
+            onEndReachedThreshold={0.5}
+            onEndReached={() => {
+              if (hasNextPage && !isFetchingNextPage) {
+                fetchNextPage();
+              }
+            }}
+            ListFooterComponent={
+              isFetchingNextPage ? (
+                <View style={{ paddingVertical: 16, alignItems: "center" }}>
+                  <ActivityIndicator size="small" color="#4F46E5" />
+                </View>
+              ) : !hasNextPage && items.length > 0 ? (
+                <View style={{ paddingVertical: 16, alignItems: "center" }}>
+                  <Text style={{ color: "#9CA3AF", fontSize: 12 }}>
+                    End of list
+                  </Text>
+                </View>
+              ) : null
+            }
+          />
         </View>
       )}
 
