@@ -1,5 +1,4 @@
 import KeyboardAvoider from "@/components/keyboard-avoider";
-import { Draw } from "@/hooks/use-draw";
 import useMonitoringActions from "@/hooks/use-monitoring-actions";
 import {
   ALL_SUB_TYPES,
@@ -270,17 +269,20 @@ export default function ExtraCountsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const params = useLocalSearchParams<{ drawId?: string; vendorId?: string }>();
-  const initialDrawId = params.drawId ? Number(params.drawId) : null;
+  const params = useLocalSearchParams<{
+    drawId?: string;
+    drawName?: string;
+    vendorId?: string;
+  }>();
+  const drawId = params.drawId ? Number(params.drawId) : null;
+  const drawNameFromParams = params.drawName || "";
   const initialVendorId = params.vendorId ? Number(params.vendorId) : null;
 
   const [vendorId, setVendorId] = useState<number | null>(initialVendorId);
-  const [drawId, setDrawId] = useState<number | null>(initialDrawId);
   const [types, setTypes] = useState<MonitoringType[]>([]);
   const [subTypes, setSubTypes] = useState<MonitoringSubType[]>([]);
 
   const [showVendorPicker, setShowVendorPicker] = useState(false);
-  const [showDrawPicker, setShowDrawPicker] = useState(false);
   const [showTransferPicker, setShowTransferPicker] = useState(false);
   const [selectedTransferVendorIds, setSelectedTransferVendorIds] = useState<
     Set<number>
@@ -289,12 +291,6 @@ export default function ExtraCountsScreen() {
   const { data: vendors = [] } = useQuery<Vendor[]>({
     queryKey: ["vendors"],
     queryFn: () => api.get("/administrator/vendors/").then((r) => r.data),
-    retry: false,
-  });
-
-  const { data: draws = [] } = useQuery<(Draw & { id: number })[]>({
-    queryKey: ["draws-list"],
-    queryFn: () => api.get("/draw/list/").then((r) => r.data),
     retry: false,
   });
 
@@ -409,13 +405,12 @@ export default function ExtraCountsScreen() {
   const totalExtraFromServer = data?.pages[0]?.total_extra ?? 0;
 
   const vendorName = vendors.find((v) => v.id === vendorId)?.name;
-  const drawName = draws.find((d) => d.id === drawId)?.name;
+  const drawName = drawNameFromParams || (drawId ? `Draw #${drawId}` : "");
   const hasFilters =
-    !!vendorId || !!drawId || types.length > 0 || subTypes.length > 0;
+    !!vendorId || types.length > 0 || subTypes.length > 0;
 
   const clearAll = () => {
     setVendorId(null);
-    setDrawId(null);
     setTypes([]);
     setSubTypes([]);
   };
@@ -530,7 +525,7 @@ export default function ExtraCountsScreen() {
     if (!drawId) {
       Alert.alert(
         "Select a draw",
-        "Transfer requires a specific draw. Pick one from the Draw filter above."
+        "Transfer requires a specific draw. Open this screen via a draw's Monitor action."
       );
       return;
     }
@@ -605,7 +600,14 @@ export default function ExtraCountsScreen() {
           </TouchableOpacity>
           <Text className="text-xl font-bold text-gray-800">Extra Counts</Text>
           <TouchableOpacity
-            onPress={() => router.push("/transfer-log")}
+            onPress={() =>
+              router.push({
+                pathname: "/transfer-log",
+                params: drawId
+                  ? { drawId: String(drawId), drawName }
+                  : {},
+              })
+            }
             className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
             activeOpacity={0.7}
           >
@@ -616,19 +618,26 @@ export default function ExtraCountsScreen() {
 
       {/* Filters */}
       <View className="bg-white px-6 pt-4 pb-5 border-b border-gray-100 gap-2">
+        {drawId ? (
+          <View className="flex-row items-center bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2.5">
+            <Ticket size={14} color="#4338CA" />
+            <Text className="text-[10px] text-indigo-500 font-semibold uppercase ml-2 mr-1">
+              Draw
+            </Text>
+            <Text
+              className="text-indigo-800 font-bold text-sm flex-1"
+              numberOfLines={1}
+            >
+              {drawName}
+            </Text>
+          </View>
+        ) : null}
         <FilterRow
           icon={<Building2 size={14} color="#6366F1" />}
           label="Vendor"
           value={vendorName || "All"}
           active={!!vendorId}
           onPress={() => setShowVendorPicker(true)}
-        />
-        <FilterRow
-          icon={<Ticket size={14} color="#6366F1" />}
-          label="Draw"
-          value={drawName || "All"}
-          active={!!drawId}
-          onPress={() => setShowDrawPicker(true)}
         />
 
         <Text className="text-gray-400 text-xs font-semibold mt-1">
@@ -868,16 +877,6 @@ export default function ExtraCountsScreen() {
         selectedId={vendorId}
         onSelect={(v) => setVendorId(v ? v.id : null)}
         onClose={() => setShowVendorPicker(false)}
-      />
-      <PickerModal
-        visible={showDrawPicker}
-        title="Filter by Draw"
-        clearLabel="All draws"
-        searchPlaceholder="Search draws..."
-        items={draws}
-        selectedId={drawId}
-        onSelect={(d) => setDrawId(d ? d.id : null)}
-        onClose={() => setShowDrawPicker(false)}
       />
       <Modal
         visible={showTransferPicker}
