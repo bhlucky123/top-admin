@@ -6,7 +6,7 @@ import useVendorFeature, { VendorFeature } from "@/hooks/use-vendor-feature";
 import useVendor, { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import {
   Building2,
   Check,
@@ -14,7 +14,6 @@ import {
   Pencil,
   Plus,
   Power,
-  Settings,
   Shield,
   Star,
   Ticket,
@@ -41,7 +40,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function VendorDetailScreen() {
   const { id, name, is_active: isActiveParam } = useLocalSearchParams<{ id: string; name: string; is_active: string }>();
   const vendorId = Number(id);
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [showDrawPicker, setShowDrawPicker] = useState(false);
@@ -582,24 +580,6 @@ export default function VendorDetailScreen() {
 
         {/* Quick Actions */}
         <View className="flex-row mx-5 mt-4 gap-3">
-          <TouchableOpacity
-            onPress={() =>
-              router.push({
-                pathname: "/vendor-config/[id]",
-                params: { id: String(vendorId) },
-              })
-            }
-            className="flex-1 bg-white rounded-2xl border border-gray-100 p-4 items-center shadow-sm"
-            activeOpacity={0.7}
-          >
-            <View className="w-10 h-10 rounded-xl bg-emerald-50 items-center justify-center mb-2">
-              <Settings size={18} color="#059669" />
-            </View>
-            <Text className="text-gray-800 font-semibold text-sm">
-              Prize Config
-            </Text>
-          </TouchableOpacity>
-
           <TouchableOpacity
             onPress={() => setShowDrawPicker(true)}
             className="flex-1 bg-white rounded-2xl border border-gray-100 p-4 items-center shadow-sm"
