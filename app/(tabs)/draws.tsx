@@ -582,7 +582,6 @@ export default function DrawsScreen() {
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState<(Draw & { id: number }) | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"default" | "other">("default");
 
   const {
     data: draws = [],
@@ -598,14 +597,9 @@ export default function DrawsScreen() {
 
   const { deleteDraw } = useDraw();
 
-  const defaultCount = draws.filter((d) => (d.type ?? "default") === "default").length;
-  const otherCount = draws.length - defaultCount;
-
-  const filtered = draws.filter((d) => {
-    const type = d.type ?? "default";
-    const matchesType = typeFilter === "default" ? type === "default" : type !== "default";
-    return matchesType && d.name.toLowerCase().includes(searchQuery.toLowerCase());
-  });
+  const filtered = draws.filter((d) =>
+    d.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleDelete = (draw: Draw & { id: number }) => {
     Alert.alert("Delete Draw", `Delete "${draw.name}"?`, [
@@ -675,39 +669,6 @@ export default function DrawsScreen() {
             placeholderTextColor="#9ca3af"
           />
         </View>
-
-        <View className="flex-row mt-4 bg-gray-100 rounded-xl p-1">
-          <TouchableOpacity
-            onPress={() => setTypeFilter("default")}
-            activeOpacity={0.85}
-            className={`flex-1 py-2.5 rounded-lg items-center ${
-              typeFilter === "default" ? "bg-white shadow-sm" : ""
-            }`}
-          >
-            <Text
-              className={`text-sm font-semibold ${
-                typeFilter === "default" ? "text-indigo-600" : "text-gray-500"
-              }`}
-            >
-              Default ({defaultCount})
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setTypeFilter("other")}
-            activeOpacity={0.85}
-            className={`flex-1 py-2.5 rounded-lg items-center ${
-              typeFilter === "other" ? "bg-white shadow-sm" : ""
-            }`}
-          >
-            <Text
-              className={`text-sm font-semibold ${
-                typeFilter === "other" ? "text-indigo-600" : "text-gray-500"
-              }`}
-            >
-              Other ({otherCount})
-            </Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
       {isLoading ? (
@@ -758,11 +719,7 @@ export default function DrawsScreen() {
             <View className="flex-1 items-center mt-20">
               <Ticket size={48} color="#D1D5DB" />
               <Text className="text-gray-400 text-lg mt-4">
-                {searchQuery
-                  ? "No draws match your search"
-                  : typeFilter === "default"
-                  ? "No default draws yet"
-                  : "No non-default draws yet"}
+                {searchQuery ? "No draws match your search" : "No draws yet"}
               </Text>
             </View>
           }
