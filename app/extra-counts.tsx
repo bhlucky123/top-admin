@@ -995,6 +995,7 @@ export default function ExtraCountsScreen() {
                 data={transferCandidates}
                 keyExtractor={(v) => v.id.toString()}
                 style={{ maxHeight: 380 }}
+                extraData={selectedTransferVendorIds}
                 renderItem={({ item }) => {
                   const checked = selectedTransferVendorIds.has(item.id);
                   return (
