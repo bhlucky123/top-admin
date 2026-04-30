@@ -485,7 +485,7 @@ export default function ExtraCountsScreen() {
             clear.mutate(body, {
               onSuccess: (res) => {
                 queryClient.invalidateQueries({ queryKey: ["extra-counts"] });
-                Alert.alert("Cleared", `${res.deleted_count} record${res.deleted_count === 1 ? "" : "s"} deleted.`);
+                Alert.alert("Cleared", `${res.cleared_count} record${res.cleared_count === 1 ? "" : "s"} marked as done.`);
               },
               onError: (err: any) => {
                 const msg = typeof err === "string" ? err : err?.message || "Failed to clear.";

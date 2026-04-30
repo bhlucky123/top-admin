@@ -69,7 +69,7 @@ const useMonitoringActions = () => {
         .then((r) => r.data),
   });
 
-  const clear = useMutation<{ deleted_count: number }, any, ClearBody>({
+  const clear = useMutation<{ cleared_count: number }, any, ClearBody>({
     mutationFn: (body) =>
       api
         .post("/draw-monitoring/extra-count/clear/", body)
