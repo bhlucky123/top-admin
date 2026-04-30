@@ -561,8 +561,11 @@ export default function ExtraCountsScreen() {
       );
       return;
     }
+    const transferBody: any = { draw_id: drawId, vendor_ids: vendorIds };
+    if (types.length) transferBody.type = types;
+    if (subTypes.length) transferBody.sub_type = subTypes;
     transferAll.mutate(
-      { draw_id: drawId, vendor_ids: vendorIds },
+      transferBody,
       {
         onSuccess: (res) => {
           queryClient.invalidateQueries({ queryKey: ["extra-counts"] });
