@@ -25,7 +25,12 @@ type ClearBody = {
   sub_type?: MonitoringSubType | MonitoringSubType[];
 };
 
-type TransferBody = { draw_id: number; vendor_ids?: number[] };
+type TransferBody = {
+  draw_id: number;
+  vendor_ids?: number[];
+  type?: MonitoringType | MonitoringType[];
+  sub_type?: MonitoringSubType | MonitoringSubType[];
+};
 
 export type TransferEntry = {
   from_vendor: string;
@@ -69,7 +74,7 @@ const useMonitoringActions = () => {
         .then((r) => r.data),
   });
 
-  const clear = useMutation<{ deleted_count: number }, any, ClearBody>({
+  const clear = useMutation<{ cleared_count: number }, any, ClearBody>({
     mutationFn: (body) =>
       api
         .post("/draw-monitoring/extra-count/clear/", body)
