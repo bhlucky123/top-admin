@@ -25,7 +25,12 @@ type ClearBody = {
   sub_type?: MonitoringSubType | MonitoringSubType[];
 };
 
-type TransferBody = { draw_id: number; vendor_ids?: number[] };
+type TransferBody = {
+  draw_id: number;
+  vendor_ids?: number[];
+  type?: MonitoringType | MonitoringType[];
+  sub_type?: MonitoringSubType | MonitoringSubType[];
+};
 
 export type TransferEntry = {
   from_vendor: string;
