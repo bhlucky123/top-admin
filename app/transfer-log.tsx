@@ -5,7 +5,7 @@ import { SUB_TYPE_LABELS, TYPE_LABELS } from "@/hooks/use-monitoring-extra-count
 import { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
 import { AntDesign } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   ArrowRight,
@@ -281,30 +281,68 @@ export default function TransferLogScreen() {
     [drawId, vendorId]
   );
 
+  const PAGE_SIZE = 50;
+
+  type LogPage = {
+    results: MonitoringTransferLog[];
+    count: number;
+    next: string | null;
+    previous: string | null;
+  };
+
   const {
-    data: rawData,
+    data,
     isLoading,
     isFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
     isError,
     refetch,
-  } = useQuery<MonitoringTransferLog[] | { results: MonitoringTransferLog[] }>({
+  } = useInfiniteQuery<LogPage, any>({
     queryKey,
-    queryFn: () => {
-      const q: Record<string, any> = {};
+    initialPageParam: 0,
+    queryFn: ({ pageParam = 0 }) => {
+      const q: Record<string, any> = {
+        limit: PAGE_SIZE,
+        offset: pageParam,
+      };
       if (drawId) q.draw_session__draw__id = drawId;
       if (vendorId) q.vendor__id = vendorId;
       return api
         .get("/draw-monitoring/transfer-log/", { params: q })
-        .then((r) => r.data);
+        .then((r) => {
+          // Normalize: backend now paginates; older deployments may still
+          // return a plain array.
+          const d = r.data;
+          if (Array.isArray(d)) {
+            return {
+              results: d,
+              count: d.length,
+              next: null,
+              previous: null,
+            } as LogPage;
+          }
+          return d as LogPage;
+        });
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage?.next) return undefined;
+      const loaded = allPages.reduce(
+        (acc, p) => acc + (p.results?.length ?? 0),
+        0
+      );
+      return loaded;
     },
     retry: false,
   });
 
   const items: MonitoringTransferLog[] = useMemo(() => {
-    if (Array.isArray(rawData)) return rawData;
-    const maybeResults = (rawData as any)?.results;
-    return Array.isArray(maybeResults) ? maybeResults : [];
-  }, [rawData]);
+    if (!data) return [];
+    return data.pages.flatMap((p) => p.results ?? []);
+  }, [data]);
+
+  const totalAvailable = data?.pages?.[0]?.count ?? items.length;
 
   const drawName = drawNameFromParams || (drawId ? `Draw #${drawId}` : "");
   const vendorName = vendors.find((v) => v.id === vendorId)?.name;
@@ -316,6 +354,12 @@ export default function TransferLogScreen() {
 
   let totalCount = 0;
   for (const i of items) totalCount += i?.count ?? 0;
+
+  const handleEndReached = () => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  };
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -378,12 +422,15 @@ export default function TransferLogScreen() {
             <View className="px-3 py-1.5 rounded-lg bg-gray-100">
               <Text className="text-gray-500 text-xs">
                 Transfers{" "}
-                <Text className="text-gray-800 font-bold">{items.length}</Text>
+                <Text className="text-gray-800 font-bold">
+                  {items.length}
+                  {totalAvailable > items.length ? ` / ${totalAvailable}` : ""}
+                </Text>
               </Text>
             </View>
             <View className="px-3 py-1.5 rounded-lg bg-indigo-50">
               <Text className="text-indigo-500 text-xs">
-                Total Count{" "}
+                Loaded Count{" "}
                 <Text className="text-indigo-700 font-bold">{totalCount}</Text>
               </Text>
             </View>
@@ -431,21 +478,37 @@ export default function TransferLogScreen() {
       ) : (
         <View style={{ flex: 1 }}>
           <TableHeader />
-          <ScrollView
+          <FlatList
+            data={items}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item, index }) => (
+              <TableRow item={item} even={index % 2 === 0} />
+            )}
             contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+            onEndReached={handleEndReached}
+            onEndReachedThreshold={0.4}
             refreshControl={
               <RefreshControl
-                refreshing={isFetching}
+                refreshing={isFetching && !isFetchingNextPage}
                 onRefresh={refetch}
                 colors={["#4F46E5"]}
                 tintColor="#4F46E5"
               />
             }
-          >
-            {items.map((item, index) => (
-              <TableRow key={item.id} item={item} even={index % 2 === 0} />
-            ))}
-          </ScrollView>
+            ListFooterComponent={
+              isFetchingNextPage ? (
+                <View style={{ paddingVertical: 16, alignItems: "center" }}>
+                  <ActivityIndicator size="small" color="#4F46E5" />
+                </View>
+              ) : !hasNextPage && items.length > 0 ? (
+                <View style={{ paddingVertical: 16, alignItems: "center" }}>
+                  <Text style={{ color: "#94a3b8", fontSize: 12 }}>
+                    End of log
+                  </Text>
+                </View>
+              ) : null
+            }
+          />
         </View>
       )}
 
