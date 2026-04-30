@@ -39,6 +39,7 @@ type EditVendorParams = VendorMonitoringFields & {
   is_active?: boolean;
 };
 type ToggleActiveParams = { id: number; is_active: boolean };
+type DeleteVendorParams = { id: number };
 
 const useVendor = () => {
   const createMutation = useMutation<Vendor, any, CreateVendorParams>({
@@ -56,6 +57,11 @@ const useVendor = () => {
       api.patch(`/administrator/vendors/${id}/`, { is_active }).then((res) => res.data),
   });
 
+  const deleteMutation = useMutation<void, any, DeleteVendorParams>({
+    mutationFn: ({ id }) =>
+      api.delete(`/administrator/vendors/${id}/`).then((res) => res.data),
+  });
+
   return {
     createVendor: createMutation.mutate,
     createVendorAsync: createMutation.mutateAsync,
@@ -68,6 +74,10 @@ const useVendor = () => {
     toggleActive: toggleActiveMutation.mutate,
     toggleActiveAsync: toggleActiveMutation.mutateAsync,
     isToggling: toggleActiveMutation.isPending,
+
+    deleteVendor: deleteMutation.mutate,
+    deleteVendorAsync: deleteMutation.mutateAsync,
+    isDeleting: deleteMutation.isPending,
   };
 };
 
