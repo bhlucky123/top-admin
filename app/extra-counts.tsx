@@ -502,13 +502,16 @@ export default function ExtraCountsScreen() {
     data: transferCandidates = [],
     isFetching: loadingCandidates,
   } = useQuery<Vendor[]>({
-    queryKey: ["vendors", "monitoring-enabled"],
-    queryFn: () =>
-      api
-        .get("/administrator/vendors/", {
-          params: { monitoring_enabled: true, is_active: true },
-        })
-        .then((r) => (Array.isArray(r.data) ? r.data : [])),
+    queryKey: ["extra-counts", "source-vendors", drawId, typesKey, subTypesKey],
+    queryFn: () => {
+      const params: Record<string, any> = {};
+      if (drawId) params.draw_session__draw__id = drawId;
+      if (types.length) params.type__in = types.join(",");
+      if (subTypes.length) params.sub_type__in = subTypes.join(",");
+      return api
+        .get("/draw-monitoring/extra-count/source-vendors/", { params })
+        .then((r) => (Array.isArray(r.data) ? r.data : []));
+    },
     enabled: showTransferPicker,
     retry: false,
   });
