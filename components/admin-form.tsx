@@ -1,8 +1,10 @@
 import KeyboardAvoider from "@/components/keyboard-avoider";
 import { Admin } from "@/hooks/use-staff";
+import api from "@/utils/axios";
 import { Eye, EyeOff, MoveLeft } from "lucide-react-native";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StatusBar,
   Text,
@@ -41,19 +43,57 @@ export default function AdminForm({
   vendorId: number;
   vendorName?: string;
 }) {
+  const isEdit = !!defaultValues?.id;
+
+  let calculateOperatorInitial = "+";
+  let calculateSecondNumInitial = "";
+  if (defaultValues?.calculate_str) {
+    const match = /^([+\-*/])\s*(\d+)$/.exec(defaultValues.calculate_str);
+    if (match) {
+      calculateOperatorInitial = match[1];
+      calculateSecondNumInitial = match[2];
+    }
+  }
+
   const [form, setForm] = useState({
     username: defaultValues?.username || "",
     password: "",
     is_active: defaultValues?.is_active ?? true,
     is_main_vendor: defaultValues?.is_main_vendor ?? false,
-    calculate_str: defaultValues?.calculate_str || "",
+    calculate_first_number: defaultValues?.id ? String(defaultValues.id) : "",
+    calculate_operator: calculateOperatorInitial,
+    calculate_second_number: calculateSecondNumInitial,
     secret_pin: defaultValues?.secret_pin?.toString() || "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const isEdit = !!defaultValues?.id;
+
+  const [loadingCalcId, setLoadingCalcId] = useState(false);
+  const [errorCalcId, setErrorCalcId] = useState(false);
+  const fetchedRef = useRef(false);
+
+  const fetchCalcId = () => {
+    setLoadingCalcId(true);
+    setErrorCalcId(false);
+    api.get("/user/get-new-user-id/?user_type=ADMIN")
+      .then((res) => {
+        setForm((prev) => ({ ...prev, calculate_first_number: String(res.data) }));
+        fetchedRef.current = true;
+        setLoadingCalcId(false);
+      })
+      .catch(() => {
+        setErrorCalcId(true);
+        setLoadingCalcId(false);
+      });
+  };
+
+  useEffect(() => {
+    if (!isEdit && !fetchedRef.current) {
+      fetchCalcId();
+    }
+  }, [isEdit]);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -61,7 +101,12 @@ export default function AdminForm({
     else if (/\s/.test(form.username)) newErrors.username = "No spaces allowed";
     if (!isEdit && !form.password.trim())
       newErrors.password = "Password is required";
-    if (!form.calculate_str.trim()) newErrors.calculate_str = "Required";
+    if (!form.calculate_first_number || isNaN(Number(form.calculate_first_number)))
+      newErrors.calculate_str = "User ID required";
+    if (!form.calculate_operator)
+      newErrors.calculate_str = "Operator is required";
+    if (!form.calculate_second_number || isNaN(Number(form.calculate_second_number)))
+      newErrors.calculate_str = "Second number required";
     if (!form.secret_pin.trim()) newErrors.secret_pin = "Required";
     else if (isNaN(Number(form.secret_pin)))
       newErrors.secret_pin = "Must be a number";
@@ -81,12 +126,19 @@ export default function AdminForm({
       is_active: form.is_active,
       vendor: vendorId,
       is_main_vendor: form.is_main_vendor,
-      calculate_str: form.calculate_str,
+      calculate_str: `${form.calculate_operator}${form.calculate_second_number}`,
       secret_pin: Number(form.secret_pin),
     };
     if (form.password.trim()) data.password = form.password;
     onSubmit(data);
   };
+
+  const CALC_OPERATORS = [
+    { label: "+", value: "+" },
+    { label: "-", value: "-" },
+    { label: "*", value: "*" },
+    { label: "/", value: "/" },
+  ];
 
   const inputFields = [
     { key: "username", label: "Username", keyboard: "default" as const },
@@ -96,7 +148,6 @@ export default function AdminForm({
       keyboard: "default" as const,
       optional: isEdit,
     },
-    { key: "calculate_str", label: "Calculate String", keyboard: "default" as const },
     { key: "secret_pin", label: "Secret PIN", keyboard: "numeric" as const },
   ];
 
@@ -132,6 +183,90 @@ export default function AdminForm({
             <View className="px-4 py-3 rounded-xl bg-indigo-50 border border-indigo-200">
               <Text className="text-indigo-800 font-semibold">
                 {vendorName || `Vendor #${vendorId}`}
+              </Text>
+            </View>
+          </View>
+
+          {/* Calculate String */}
+          <View className="mb-5">
+            <Text className="text-gray-700 font-semibold mb-2 ml-1">
+              Calculate String<Text className="text-red-500"> *</Text>
+            </Text>
+            <View className="flex-row items-center gap-2">
+              <View className="flex-1">
+                <Text className="text-xs text-gray-500 mb-1">User ID</Text>
+                <View className={`border-2 rounded-xl px-4 py-3.5 bg-gray-100 ${errorCalcId ? "border-red-300" : "border-gray-200"}`}>
+                  {form.calculate_first_number ? (
+                    <Text className="text-gray-800 font-medium">{form.calculate_first_number}</Text>
+                  ) : errorCalcId ? (
+                    <TouchableOpacity onPress={fetchCalcId} activeOpacity={0.7} className="flex-row items-center">
+                      <Text className="text-red-500 font-medium text-xs mr-1">Failed</Text>
+                      <Text className="text-indigo-600 font-bold text-xs">Retry</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    loadingCalcId ? <ActivityIndicator size="small" color="#4F46E5" /> : <Text className="text-gray-400 font-medium">--</Text>
+                  )}
+                </View>
+              </View>
+
+              <View>
+                <Text className="text-xs text-gray-500 mb-1">Operator</Text>
+                <View className="flex-row border-2 rounded-xl px-1 py-1 bg-white border-gray-200">
+                  {CALC_OPERATORS.map((op) => (
+                    <TouchableOpacity
+                      key={op.value}
+                      onPress={() => handleChange("calculate_operator", op.value)}
+                      className={`px-3 py-2.5 rounded-lg ${
+                        form.calculate_operator === op.value ? "bg-indigo-500" : ""
+                      }`}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        className={`font-bold text-lg ${
+                          form.calculate_operator === op.value ? "text-white" : "text-gray-800"
+                        }`}
+                      >
+                        {op.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View className="flex-1">
+                <Text className="text-xs text-gray-500 mb-1">Number</Text>
+                <TextInput
+                  placeholder="e.g. 9"
+                  className={`border-2 rounded-xl px-4 py-3.5 bg-white text-gray-800 font-medium ${
+                    focusedField === "calculate_second_number"
+                      ? "border-indigo-400 bg-indigo-50"
+                      : form.calculate_second_number
+                      ? "border-green-300 bg-green-50"
+                      : "border-gray-200"
+                  }`}
+                  value={form.calculate_second_number}
+                  keyboardType="numeric"
+                  onFocus={() => setFocusedField("calculate_second_number")}
+                  onBlur={() => setFocusedField(null)}
+                  onChangeText={(t) => handleChange("calculate_second_number", t.replace(/[^0-9]/g, ""))}
+                  maxLength={4}
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+            </View>
+            {errors.calculate_str ? (
+              <Text className="text-red-500 text-sm mt-1 ml-1 font-medium">
+                {errors.calculate_str}
+              </Text>
+            ) : null}
+            <View className="mt-2">
+              <Text className="text-gray-500 text-sm">
+                Preview:{" "}
+                <Text className="font-bold text-indigo-600">
+                  {form.calculate_first_number && form.calculate_operator && form.calculate_second_number
+                    ? `${form.calculate_first_number}${form.calculate_operator}${form.calculate_second_number}`
+                    : ""}
+                </Text>
               </Text>
             </View>
           </View>
