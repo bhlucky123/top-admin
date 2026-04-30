@@ -485,7 +485,7 @@ export default function ExtraCountsScreen() {
             clear.mutate(body, {
               onSuccess: (res) => {
                 queryClient.invalidateQueries({ queryKey: ["extra-counts"] });
-                Alert.alert("Cleared", `${res.deleted_count} record${res.deleted_count === 1 ? "" : "s"} deleted.`);
+                Alert.alert("Cleared", `${res.cleared_count} record${res.cleared_count === 1 ? "" : "s"} marked as done.`);
               },
               onError: (err: any) => {
                 const msg = typeof err === "string" ? err : err?.message || "Failed to clear.";
@@ -502,13 +502,16 @@ export default function ExtraCountsScreen() {
     data: transferCandidates = [],
     isFetching: loadingCandidates,
   } = useQuery<Vendor[]>({
-    queryKey: ["vendors", "monitoring-enabled"],
-    queryFn: () =>
-      api
-        .get("/administrator/vendors/", {
-          params: { monitoring_enabled: true, is_active: true },
-        })
-        .then((r) => (Array.isArray(r.data) ? r.data : [])),
+    queryKey: ["extra-counts", "source-vendors", drawId, typesKey, subTypesKey],
+    queryFn: () => {
+      const params: Record<string, any> = {};
+      if (drawId) params.draw_session__draw__id = drawId;
+      if (types.length) params.type__in = types.join(",");
+      if (subTypes.length) params.sub_type__in = subTypes.join(",");
+      return api
+        .get("/draw-monitoring/extra-count/source-vendors/", { params })
+        .then((r) => (Array.isArray(r.data) ? r.data : []));
+    },
     enabled: showTransferPicker,
     retry: false,
   });
@@ -561,8 +564,11 @@ export default function ExtraCountsScreen() {
       );
       return;
     }
+    const transferBody: any = { draw_id: drawId, vendor_ids: vendorIds };
+    if (types.length) transferBody.type = types;
+    if (subTypes.length) transferBody.sub_type = subTypes;
     transferAll.mutate(
-      { draw_id: drawId, vendor_ids: vendorIds },
+      transferBody,
       {
         onSuccess: (res) => {
           queryClient.invalidateQueries({ queryKey: ["extra-counts"] });

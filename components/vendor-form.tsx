@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export type VendorFormData = {
   name: string;
@@ -64,6 +65,7 @@ export default function VendorForm({
     String(defaultValues?.monitoring_triple_digit_box_count ?? "")
   );
   const [errors, setErrors] = useState<{ [k: string]: string }>({});
+  const insets = useSafeAreaInsets();
 
   const validate = () => {
     const e: { [k: string]: string } = {};
@@ -132,6 +134,7 @@ export default function VendorForm({
         <ScrollView
           className="flex-1 px-6 pt-8"
           keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
         >
           <View className="mb-6">
             <Text className="text-gray-700 font-semibold mb-2 ml-1">
