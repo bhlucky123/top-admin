@@ -138,13 +138,12 @@ export default function VendorForm({
               Vendor Name <Text className="text-red-500">*</Text>
             </Text>
             <TextInput
-              className={`border-2 rounded-xl px-4 py-4 bg-white text-gray-800 font-medium ${
-                errors.name
-                  ? "border-red-300 bg-red-50"
-                  : name.trim()
+              className={`border-2 rounded-xl px-4 py-4 bg-white text-gray-800 font-medium ${errors.name
+                ? "border-red-300 bg-red-50"
+                : name.trim()
                   ? "border-green-300 bg-green-50"
                   : "border-gray-200"
-              }`}
+                }`}
               placeholder="Enter vendor name"
               placeholderTextColor="#9CA3AF"
               value={name}
@@ -163,11 +162,10 @@ export default function VendorForm({
             <TouchableOpacity
               onPress={() => setMonitoringEnabled((v) => !v)}
               activeOpacity={0.8}
-              className={`flex-row items-center justify-between px-4 py-4 rounded-xl border-2 ${
-                monitoringEnabled
-                  ? "bg-green-50 border-green-300"
-                  : "bg-gray-50 border-gray-200"
-              }`}
+              className={`flex-row items-center justify-between px-4 py-4 rounded-xl border-2 ${monitoringEnabled
+                ? "bg-green-50 border-green-300"
+                : "bg-gray-50 border-gray-200"
+                }`}
             >
               <View className="flex-row items-center flex-1 pr-3">
                 <Activity
@@ -176,9 +174,8 @@ export default function VendorForm({
                 />
                 <View className="ml-3 flex-1">
                   <Text
-                    className={`font-semibold ${
-                      monitoringEnabled ? "text-green-700" : "text-gray-600"
-                    }`}
+                    className={`font-semibold ${monitoringEnabled ? "text-green-700" : "text-gray-600"
+                      }`}
                   >
                     Extra-Count Monitoring
                   </Text>
@@ -190,14 +187,12 @@ export default function VendorForm({
                 </View>
               </View>
               <View
-                className={`w-12 h-6 rounded-full p-0.5 ${
-                  monitoringEnabled ? "bg-green-500" : "bg-gray-400"
-                }`}
+                className={`w-12 h-6 rounded-full p-0.5 ${monitoringEnabled ? "bg-green-500" : "bg-gray-400"
+                  }`}
               >
                 <View
-                  className={`w-5 h-5 bg-white rounded-full ${
-                    monitoringEnabled ? "ml-auto" : ""
-                  }`}
+                  className={`w-5 h-5 bg-white rounded-full ${monitoringEnabled ? "ml-auto" : ""
+                    }`}
                 />
               </View>
             </TouchableOpacity>
@@ -234,11 +229,10 @@ export default function VendorForm({
                     {f.label}
                   </Text>
                   <TextInput
-                    className={`border-2 rounded-xl px-4 py-3 bg-white text-gray-800 font-medium ${
-                      errors[f.key]
-                        ? "border-red-300 bg-red-50"
-                        : "border-gray-200"
-                    }`}
+                    className={`border-2 rounded-xl px-4 py-3 bg-white text-gray-800 font-medium ${errors[f.key]
+                      ? "border-red-300 bg-red-50"
+                      : "border-gray-200"
+                      }`}
                     placeholder="0"
                     placeholderTextColor="#9CA3AF"
                     keyboardType="numeric"
@@ -270,11 +264,10 @@ export default function VendorForm({
                     {f.label}
                   </Text>
                   <TextInput
-                    className={`border-2 rounded-xl px-4 py-3 bg-white text-gray-800 font-medium ${
-                      errors[f.key]
-                        ? "border-red-300 bg-red-50"
-                        : "border-gray-200"
-                    }`}
+                    className={`border-2 rounded-xl px-4 py-3 bg-white text-gray-800 font-medium ${errors[f.key]
+                      ? "border-red-300 bg-red-50"
+                      : "border-gray-200"
+                      }`}
                     placeholder="0"
                     placeholderTextColor="#9CA3AF"
                     keyboardType="numeric"
@@ -305,11 +298,10 @@ export default function VendorForm({
                     {f.label}
                   </Text>
                   <TextInput
-                    className={`border-2 rounded-xl px-4 py-3 bg-white text-gray-800 font-medium ${
-                      errors[f.key]
-                        ? "border-red-300 bg-red-50"
-                        : "border-gray-200"
-                    }`}
+                    className={`border-2 rounded-xl px-4 py-3 bg-white text-gray-800 font-medium ${errors[f.key]
+                      ? "border-red-300 bg-red-50"
+                      : "border-gray-200"
+                      }`}
                     placeholder="0"
                     placeholderTextColor="#9CA3AF"
                     keyboardType="numeric"
@@ -327,9 +319,8 @@ export default function VendorForm({
           </View>
 
           <TouchableOpacity
-            className={`bg-indigo-600 py-4 rounded-xl shadow-lg ${
-              submitting ? "opacity-60" : ""
-            }`}
+            className={`bg-indigo-600 py-4 rounded-xl shadow-lg ${submitting ? "opacity-60" : ""
+              } mb-20  `}
             onPress={handleSubmit}
             disabled={submitting}
             activeOpacity={0.9}
@@ -340,8 +331,8 @@ export default function VendorForm({
                   ? "Updating..."
                   : "Creating..."
                 : isEdit
-                ? "Update Vendor"
-                : "Create Vendor"}
+                  ? "Update Vendor"
+                  : "Create Vendor"}
             </Text>
           </TouchableOpacity>
         </ScrollView>

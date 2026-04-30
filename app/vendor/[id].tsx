@@ -6,7 +6,7 @@ import useVendorFeature, { VendorFeature } from "@/hooks/use-vendor-feature";
 import useVendor, { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import {
   Building2,
   Check,
@@ -124,7 +124,7 @@ export default function VendorDetailScreen() {
 
   const { assignFeatures, isAssigningFeatures } = useVendorFeature();
   const { assignDraw, unassignDraw, isAssigning } = useVendorDraw();
-  const { toggleActive, isToggling, editVendor } = useVendor();
+  const { toggleActive, isToggling, editVendor, deleteVendor, isDeleting } = useVendor();
   const {
     createAdmin,
     editAdmin,
@@ -375,6 +375,38 @@ export default function VendorDetailScreen() {
     );
   };
 
+  const handleDeleteVendor = () => {
+    Alert.alert(
+      "Delete Vendor",
+      `Are you sure you want to permanently delete "${vendorNameForHeader}"?\n\nThis will delete all associated dealers, agents, administrators, bookings, results, and configurations. This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            deleteVendor(
+              { id: vendorId },
+              {
+                onSuccess: () => {
+                  queryClient.invalidateQueries({ queryKey: ["vendors"] });
+                  router.back();
+                },
+                onError: (err: any) => {
+                  const msg =
+                    typeof err?.message === "string"
+                      ? err.message
+                      : "Failed to delete vendor.";
+                  Alert.alert("Error", msg);
+                },
+              }
+            );
+          },
+        },
+      ]
+    );
+  };
+
   // Available draws (not yet assigned)
   const assignedDrawIds = vendorDraws.map((vd) => vd.draw);
   const availableDraws = allDraws.filter((d) => !assignedDrawIds.includes(d.id));
@@ -543,38 +575,54 @@ export default function VendorDetailScreen() {
             </View>
 
             {/* Activate / Deactivate */}
-            <TouchableOpacity
-              onPress={handleToggleActive}
-              disabled={isToggling}
-              activeOpacity={0.85}
-              className={`mt-4 flex-row items-center justify-center py-3 rounded-xl border ${
-                isActive
-                  ? "bg-red-50 border-red-100"
-                  : "bg-green-50 border-green-100"
-              }`}
-              style={isToggling ? { opacity: 0.6 } : undefined}
-            >
-              {isToggling ? (
-                <ActivityIndicator
-                  size="small"
-                  color={isActive ? "#B91C1C" : "#047857"}
-                />
-              ) : (
-                <>
-                  <Power
-                    size={16}
+            <View className="flex-row mt-4 gap-3">
+              <TouchableOpacity
+                onPress={handleToggleActive}
+                disabled={isToggling}
+                activeOpacity={0.85}
+                className={`flex-1 flex-row items-center justify-center py-3 rounded-xl border ${
+                  isActive
+                    ? "bg-red-50 border-red-100"
+                    : "bg-green-50 border-green-100"
+                }`}
+                style={isToggling ? { opacity: 0.6 } : undefined}
+              >
+                {isToggling ? (
+                  <ActivityIndicator
+                    size="small"
                     color={isActive ? "#B91C1C" : "#047857"}
                   />
-                  <Text
-                    className={`ml-2 font-bold text-sm ${
-                      isActive ? "text-red-700" : "text-emerald-700"
-                    }`}
-                  >
-                    {isActive ? "Deactivate Vendor" : "Activate Vendor"}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
+                ) : (
+                  <>
+                    <Power
+                      size={16}
+                      color={isActive ? "#B91C1C" : "#047857"}
+                    />
+                    <Text
+                      className={`ml-2 font-bold text-sm ${
+                        isActive ? "text-red-700" : "text-emerald-700"
+                      }`}
+                    >
+                      {isActive ? "Deactivate" : "Activate"}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleDeleteVendor}
+                disabled={isDeleting}
+                activeOpacity={0.85}
+                className="flex-row items-center justify-center py-3 px-4 rounded-xl border bg-red-50 border-red-200"
+                style={isDeleting ? { opacity: 0.6 } : undefined}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#B91C1C" />
+                ) : (
+                  <Trash2 size={16} color="#B91C1C" />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
