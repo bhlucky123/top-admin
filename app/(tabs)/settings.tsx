@@ -1,3 +1,4 @@
+import { queryClient } from "@/providers/react-query-provider";
 import { useAuthStore } from "@/store/auth";
 import {
   ChevronRight,
@@ -70,7 +71,14 @@ export default function SettingsScreen() {
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Sign Out", style: "destructive", onPress: logout },
+      {
+        text: "Sign Out",
+        style: "destructive",
+        onPress: () => {
+          queryClient.clear();
+          logout();
+        },
+      },
     ]);
   };
 

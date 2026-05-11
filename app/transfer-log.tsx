@@ -1,14 +1,20 @@
 import KeyboardAvoider from "@/components/keyboard-avoider";
 import { MonitoringTransferLog } from "@/hooks/use-monitoring-actions";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { SUB_TYPE_LABELS, TYPE_LABELS } from "@/hooks/use-monitoring-extra-count";
+import {
+  MonitoringSubType,
+  MonitoringType,
+  SUB_TYPE_LABELS,
+  SUB_TYPES_BY_TYPE,
+  TYPE_LABELS,
+  TYPE_SHORT_LABELS,
+} from "@/hooks/use-monitoring-extra-count";
 import { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
 import { AntDesign } from "@expo/vector-icons";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
-  ArrowRight,
   Building2,
   ChevronDown,
   History,
@@ -154,11 +160,10 @@ function FilterRow({
   return (
     <TouchableOpacity
       onPress={onPress}
-      className={`flex-row items-center justify-between px-3 py-2.5 rounded-xl border ${
-        active
+      className={`flex-row items-center justify-between px-3 py-2.5 rounded-xl border ${active
           ? "bg-indigo-50 border-indigo-200"
           : "bg-gray-50 border-gray-200"
-      }`}
+        }`}
     >
       <View className="flex-row items-center">
         {icon}
@@ -168,9 +173,8 @@ function FilterRow({
       </View>
       <View className="flex-row items-center">
         <Text
-          className={`text-sm font-medium ${
-            active ? "text-indigo-700" : "text-gray-800"
-          }`}
+          className={`text-sm font-medium ${active ? "text-indigo-700" : "text-gray-800"
+            }`}
           numberOfLines={1}
         >
           {value}
@@ -187,8 +191,15 @@ function TableHeader() {
       <Text style={[tableStyles.headerCell, { flex: COL_FLEX.from }]}>
         From
       </Text>
-      <Text style={[tableStyles.headerCell, { flex: COL_FLEX.to }]}>To</Text>
-      <Text style={[tableStyles.headerCell, { flex: COL_FLEX.number }]}>
+      <Text style={[tableStyles.headerCell, { flex: COL_FLEX.to }]}>
+        To
+      </Text>
+      <Text
+        style={[
+          tableStyles.headerCell,
+          { flex: COL_FLEX.number, textAlign: "center" },
+        ]}
+      >
         Number
       </Text>
       <Text
@@ -226,12 +237,9 @@ function TableRow({
         </Text>
       </View>
       <View style={[tableStyles.cellBox, { flex: COL_FLEX.to }]}>
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <ArrowRight size={12} color="#9CA3AF" style={{ marginRight: 4 }} />
-          <Text style={tableStyles.cellText} numberOfLines={1}>
-            {item.to_vendor_name || `#${item.to_vendor}`}
-          </Text>
-        </View>
+        <Text style={tableStyles.cellText} numberOfLines={1}>
+          {item.to_vendor_name || `#${item.to_vendor}`}
+        </Text>
         <Text style={tableStyles.cellSub} numberOfLines={1}>
           {item.session_date}
         </Text>
@@ -240,7 +248,7 @@ function TableRow({
         style={[
           tableStyles.cellText,
           tableStyles.cellBold,
-          { flex: COL_FLEX.number, paddingHorizontal: 8, paddingVertical: 10 },
+          { flex: COL_FLEX.number, textAlign: "center", paddingHorizontal: 8, paddingVertical: 10 },
         ]}
         numberOfLines={1}
       >
@@ -268,17 +276,21 @@ export default function TransferLogScreen() {
   const drawNameFromParams = params.drawName || "";
 
   const [vendorId, setVendorId] = useState<number | null>(null);
+  const [todayOnly, setTodayOnly] = useState(true);
   const [showVendorPicker, setShowVendorPicker] = useState(false);
 
   const { data: vendors = [] } = useQuery<Vendor[]>({
-    queryKey: ["vendors"],
-    queryFn: () => api.get("/administrator/vendors/").then((r) => r.data),
+    queryKey: ["monitoring-vendors"],
+    queryFn: () =>
+      api
+        .get("/draw-monitoring/extra-count/source-vendors/")
+        .then((r) => r.data),
     retry: false,
   });
 
   const queryKey = useMemo(
-    () => ["transfer-log", drawId, vendorId],
-    [drawId, vendorId]
+    () => ["transfer-log", drawId, vendorId, todayOnly],
+    [drawId, vendorId, todayOnly]
   );
 
   const PAGE_SIZE = 50;
@@ -309,6 +321,13 @@ export default function TransferLogScreen() {
       };
       if (drawId) q.draw_session__draw__id = drawId;
       if (vendorId) q.vendor__id = vendorId;
+      if (todayOnly) {
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, "0");
+        const dd = String(now.getDate()).padStart(2, "0");
+        q.draw_session__session_date = `${yyyy}-${mm}-${dd}`;
+      }
       return api
         .get("/draw-monitoring/transfer-log/", { params: q })
         .then((r) => {
@@ -346,14 +365,32 @@ export default function TransferLogScreen() {
 
   const drawName = drawNameFromParams || (drawId ? `Draw #${drawId}` : "");
   const vendorName = vendors.find((v) => v.id === vendorId)?.name;
-  const hasFilters = !!vendorId;
+  const hasFilters = !!vendorId || !todayOnly;
 
   const clearAll = () => {
     setVendorId(null);
+    setTodayOnly(true);
   };
 
   let totalCount = 0;
   for (const i of items) totalCount += i?.count ?? 0;
+
+  const typeCounts = useMemo(() => {
+    const map: Record<MonitoringType, number> = {
+      single_digit: 0,
+      double_digit: 0,
+      triple_digit: 0,
+    };
+    for (const i of items) map[i.type] = (map[i.type] || 0) + i.count;
+    return map;
+  }, [items]);
+
+  const subTypeCounts = useMemo(() => {
+    const map: Partial<Record<MonitoringSubType, number>> = {};
+    for (const i of items)
+      map[i.sub_type] = (map[i.sub_type] || 0) + i.count;
+    return map;
+  }, [items]);
 
   const handleEndReached = () => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -406,6 +443,27 @@ export default function TransferLogScreen() {
           onPress={() => setShowVendorPicker(true)}
         />
 
+        <TouchableOpacity
+          onPress={() => setTodayOnly((p) => !p)}
+          className={`flex-row items-center justify-between px-3 py-2.5 rounded-xl border ${todayOnly
+              ? "bg-indigo-50 border-indigo-200"
+              : "bg-gray-50 border-gray-200"
+            }`}
+        >
+          <View className="flex-row items-center">
+            <History size={14} color="#6366F1" />
+            <Text className="ml-2 text-xs font-semibold text-gray-500">
+              Date
+            </Text>
+          </View>
+          <Text
+            className={`text-sm font-medium ${todayOnly ? "text-indigo-700" : "text-gray-800"
+              }`}
+          >
+            {todayOnly ? "Today only" : "All time"}
+          </Text>
+        </TouchableOpacity>
+
         {hasFilters && (
           <TouchableOpacity
             onPress={clearAll}
@@ -418,23 +476,63 @@ export default function TransferLogScreen() {
         )}
 
         {!isLoading && (
-          <View className="flex-row gap-2 mt-1">
-            <View className="px-3 py-1.5 rounded-lg bg-gray-100">
-              <Text className="text-gray-500 text-xs">
-                Transfers{" "}
-                <Text className="text-gray-800 font-bold">
-                  {items.length}
-                  {totalAvailable > items.length ? ` / ${totalAvailable}` : ""}
+          <>
+            <View className="flex-row gap-2 mt-1">
+              <View className="px-3 py-1.5 rounded-lg bg-gray-100">
+                <Text className="text-gray-500 text-xs">
+                  Transfers{" "}
+                  <Text className="text-gray-800 font-bold">
+                    {items.length}
+                    {totalAvailable > items.length ? ` / ${totalAvailable}` : ""}
+                  </Text>
                 </Text>
-              </Text>
+              </View>
+              <View className="px-3 py-1.5 rounded-lg bg-indigo-50">
+                <Text className="text-indigo-500 text-xs">
+                  Total{" "}
+                  <Text className="text-indigo-700 font-bold">{totalCount}</Text>
+                </Text>
+              </View>
             </View>
-            <View className="px-3 py-1.5 rounded-lg bg-indigo-50">
-              <Text className="text-indigo-500 text-xs">
-                Loaded Count{" "}
-                <Text className="text-indigo-700 font-bold">{totalCount}</Text>
-              </Text>
-            </View>
-          </View>
+
+            {items.length > 0 && (
+              <>
+                <View className="flex-row gap-2 mt-2">
+                  {(Object.keys(typeCounts) as MonitoringType[]).map((t) => (
+                    <View
+                      key={t}
+                      className="flex-1 bg-purple-50 rounded-lg px-3 py-2 items-center"
+                    >
+                      <Text className="text-purple-400 text-[10px] font-semibold">
+                        {TYPE_SHORT_LABELS[t]}
+                      </Text>
+                      <Text className="text-purple-700 text-sm font-bold">
+                        {typeCounts[t]}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+
+                <View className="flex-row flex-wrap gap-2 mt-1">
+                  {(Object.entries(subTypeCounts) as [MonitoringSubType, number][]).map(
+                    ([st, count]) => (
+                      <View
+                        key={st}
+                        className="bg-slate-100 rounded-lg px-3 py-1.5"
+                      >
+                        <Text className="text-slate-500 text-xs">
+                          {SUB_TYPE_LABELS[st]}{" "}
+                          <Text className="text-slate-800 font-bold">
+                            {count}
+                          </Text>
+                        </Text>
+                      </View>
+                    )
+                  )}
+                </View>
+              </>
+            )}
+          </>
         )}
       </View>
 
@@ -476,7 +574,7 @@ export default function TransferLogScreen() {
           </Text>
         </ScrollView>
       ) : (
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, marginLeft: 14, marginRight: 14 }}>
           <TableHeader />
           <FlatList
             data={items}

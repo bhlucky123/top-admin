@@ -29,6 +29,12 @@ export const TYPE_LABELS: Record<MonitoringType, string> = {
   triple_digit: "Triple Digit",
 };
 
+export const TYPE_SHORT_LABELS: Record<MonitoringType, string> = {
+  single_digit: "1D",
+  double_digit: "2D",
+  triple_digit: "3D",
+};
+
 export const SUB_TYPE_LABELS: Record<MonitoringSubType, string> = {
   A: "A",
   B: "B",
