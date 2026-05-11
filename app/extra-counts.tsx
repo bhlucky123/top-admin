@@ -8,6 +8,7 @@ import {
   SUB_TYPES_BY_TYPE,
   SUB_TYPE_LABELS,
   TYPE_LABELS,
+  TYPE_SHORT_LABELS,
 } from "@/hooks/use-monitoring-extra-count";
 import { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
@@ -149,9 +150,10 @@ function PickerModal<T extends { id: number; name: string }>({
 
 const COL_FLEX = {
   vendor: 3,
-  draw: 3,
+  type: 2,
+  subType: 1.5,
   number: 2,
-  count: 2,
+  count: 1.5,
 };
 
 function TableHeader() {
@@ -160,10 +162,28 @@ function TableHeader() {
       <Text style={[tableStyles.headerCell, { flex: COL_FLEX.vendor }]}>
         Vendor
       </Text>
-      <Text style={[tableStyles.headerCell, { flex: COL_FLEX.draw }]}>
-        Draw
+      <Text
+        style={[
+          tableStyles.headerCell,
+          { flex: COL_FLEX.type, textAlign: "center" },
+        ]}
+      >
+        Type
       </Text>
-      <Text style={[tableStyles.headerCell, { flex: COL_FLEX.number }]}>
+      <Text
+        style={[
+          tableStyles.headerCell,
+          { flex: COL_FLEX.subType, textAlign: "center" },
+        ]}
+      >
+        Sub
+      </Text>
+      <Text
+        style={[
+          tableStyles.headerCell,
+          { flex: COL_FLEX.number, textAlign: "center" },
+        ]}
+      >
         Number
       </Text>
       <Text
@@ -199,16 +219,30 @@ function TableRow({
         {item.vendor_name || `#${item.vendor}`}
       </Text>
       <Text
-        style={[tableStyles.cell, { flex: COL_FLEX.draw }]}
+        style={[
+          tableStyles.cell,
+          tableStyles.cellType,
+          { flex: COL_FLEX.type, textAlign: "center" },
+        ]}
         numberOfLines={1}
       >
-        {item.draw_name || `#${item.draw_session}`}
+        {TYPE_SHORT_LABELS[item.type] ?? item.type}
+      </Text>
+      <Text
+        style={[
+          tableStyles.cell,
+          tableStyles.cellType,
+          { flex: COL_FLEX.subType, textAlign: "center" },
+        ]}
+        numberOfLines={1}
+      >
+        {SUB_TYPE_LABELS[item.sub_type] ?? item.sub_type}
       </Text>
       <Text
         style={[
           tableStyles.cell,
           tableStyles.cellBold,
-          { flex: COL_FLEX.number },
+          { flex: COL_FLEX.number, textAlign: "center" },
         ]}
         numberOfLines={1}
       >
@@ -258,6 +292,11 @@ const tableStyles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.3,
   },
+  cellType: {
+    fontSize: 11,
+    color: "#6366F1",
+    fontWeight: "600",
+  },
   cellCount: {
     fontWeight: "700",
     color: "#B91C1C",
@@ -289,8 +328,11 @@ export default function ExtraCountsScreen() {
   >(new Set());
 
   const { data: vendors = [] } = useQuery<Vendor[]>({
-    queryKey: ["vendors"],
-    queryFn: () => api.get("/administrator/vendors/").then((r) => r.data),
+    queryKey: ["monitoring-vendors"],
+    queryFn: () =>
+      api
+        .get("/draw-monitoring/extra-count/source-vendors/")
+        .then((r) => r.data),
     retry: false,
   });
 
