@@ -2,8 +2,8 @@ import KeyboardAvoider from "@/components/keyboard-avoider";
 import api from "@/utils/axios";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
-import { MoveLeft, Save, Shield } from "lucide-react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { MoveLeft, Save, Shield, Ticket } from "lucide-react-native";
 import { useState, useEffect } from "react";
 import {
   ActivityIndicator,
@@ -60,10 +60,14 @@ const FIELD_GROUPS: FieldGroup[] = [
 
 const ALL_FIELDS = FIELD_GROUPS.flatMap((g) => g.fields);
 
-export default function SubTypeLimitsScreen() {
+export default function DrawSubTypeLimitsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
+
+  const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
+  const drawId = String(id);
+  const drawName = name || `Draw #${drawId}`;
 
   const {
     data: config,
@@ -71,9 +75,9 @@ export default function SubTypeLimitsScreen() {
     isError,
     refetch,
   } = useQuery<SubTypeLimits>({
-    queryKey: ["global-subtype-limits"],
+    queryKey: ["draw-subtype-limits", drawId],
     queryFn: () =>
-      api.get("/draw/global-subtype-limits/").then((r) => r.data),
+      api.get(`/draw/${drawId}/subtype-limits/`).then((r) => r.data),
     retry: false,
   });
 
@@ -92,9 +96,11 @@ export default function SubTypeLimitsScreen() {
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<SubTypeLimits>) =>
-      api.put("/draw/global-subtype-limits/", data).then((r) => r.data),
+      api.put(`/draw/${drawId}/subtype-limits/`, data).then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["global-subtype-limits"] });
+      queryClient.invalidateQueries({
+        queryKey: ["draw-subtype-limits", drawId],
+      });
       Alert.alert("Success", "Sub-type limits updated.");
     },
     onError: (err: any) => {
@@ -159,6 +165,18 @@ export default function SubTypeLimitsScreen() {
           <View className="w-10 h-10 rounded-full bg-indigo-50 items-center justify-center">
             <Shield size={18} color="#4F46E5" />
           </View>
+        </View>
+
+        <View className="flex-row items-center mt-4">
+          <View className="w-9 h-9 rounded-lg bg-indigo-50 items-center justify-center mr-3">
+            <Ticket size={16} color="#4F46E5" />
+          </View>
+          <Text
+            className="text-gray-800 font-bold text-base flex-1"
+            numberOfLines={1}
+          >
+            {drawName}
+          </Text>
         </View>
       </View>
 

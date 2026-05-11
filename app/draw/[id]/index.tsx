@@ -3,6 +3,7 @@ import {
   BarChart3,
   ChevronRight,
   FileText,
+  Gauge,
   MoveLeft,
   Ticket,
   Trophy,
@@ -61,6 +62,18 @@ export default function DrawDetailScreen() {
       onPress: () =>
         router.push({
           pathname: "/draw/[id]/winnings",
+          params: { id: drawId, name: drawName },
+        }),
+    },
+    {
+      key: "subtype-limits",
+      label: "Sub-Type Limits",
+      description: "Max booking count per sub-type for this draw.",
+      icon: <Gauge size={22} color="#7C3AED" />,
+      bg: "bg-violet-50",
+      onPress: () =>
+        router.push({
+          pathname: "/draw/[id]/subtype-limits",
           params: { id: drawId, name: drawName },
         }),
     },
