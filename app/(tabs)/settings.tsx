@@ -1,7 +1,9 @@
 import { queryClient } from "@/providers/react-query-provider";
 import { useAuthStore } from "@/store/auth";
+import { useRouter } from "expo-router";
 import {
   ChevronRight,
+  Gauge,
   Info,
   LogOut,
   Shield,
@@ -66,6 +68,7 @@ function SettingItem({
 }
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const { user, logout } = useAuthStore();
 
   const handleLogout = () => {
@@ -131,6 +134,21 @@ export default function SettingsScreen() {
             iconBg="#ECFDF5"
             label="Role"
             value="Super Admin (Full Access)"
+          />
+        </View>
+
+        {/* Configuration */}
+        <Text className="text-gray-400 text-xs font-semibold uppercase tracking-wider ml-2 mb-2">
+          Configuration
+        </Text>
+        <View className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm mb-5">
+          <SettingItem
+            icon={Gauge}
+            iconColor="#D97706"
+            iconBg="#FFFBEB"
+            label="Sub-Type Limits"
+            value="System-wide booking caps per sub-type"
+            onPress={() => router.push("/subtype-limits")}
           />
         </View>
 

@@ -62,6 +62,10 @@ export default function RootLayout() {
             name="transfer-log"
             options={{ headerShown: false }}
           />
+          <Stack.Screen
+            name="subtype-limits"
+            options={{ headerShown: false }}
+          />
           <Stack.Screen name="+not-found" options={{ title: "Not Found" }} />
         </Stack>
       </AlertNotificationRoot>
