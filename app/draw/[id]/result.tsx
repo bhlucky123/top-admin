@@ -207,6 +207,7 @@ export default function DrawResultScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [skipLoading, setSkipLoading] = useState(false);
+  const [unskipLoading, setUnskipLoading] = useState(false);
 
   const resultViewRef = useRef<any>(null);
 
@@ -371,6 +372,50 @@ export default function DrawResultScreen() {
     }
   };
 
+  const unskipDrawSessionMutation = useMutation({
+    mutationFn: (payload: { draw_id: number; session_date: string }) =>
+      api.post("/draw-result/unskip-draw-session/", payload),
+    onError: (error: any) => {
+      let errorMessage = "Failed to unskip draw session.";
+      if (error?.message?.message) errorMessage = error.message.message;
+      else if (error?.detail) errorMessage = error.detail;
+      else if (typeof error?.message === "string")
+        errorMessage = error.message;
+      Alert.alert("Error", errorMessage);
+    },
+  });
+
+  const handleUnskipResult = async () => {
+    if (!drawId || !filterDateString) return;
+    setUnskipLoading(true);
+    Alert.alert(
+      "Unskip Result",
+      "Are you sure you want to unskip this draw session? This will allow result publishing again.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+          onPress: () => setUnskipLoading(false),
+        },
+        {
+          text: "Unskip",
+          onPress: async () => {
+            try {
+              await unskipDrawSessionMutation.mutateAsync({
+                draw_id: drawId,
+                session_date: filterDateString,
+              });
+              refetch();
+              Alert.alert("Unskipped", "Draw session has been unskipped successfully.");
+            } finally {
+              setUnskipLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleSkipResult = async () => {
     if (!drawId || !filterDateString) return;
     setSkipLoading(true);
@@ -505,6 +550,20 @@ export default function DrawResultScreen() {
               <Text className="mt-4 text-lg font-semibold text-gray-700 text-center">
                 This result has been skipped for the selected date.
               </Text>
+              <TouchableOpacity
+                onPress={handleUnskipResult}
+                className="mt-4 bg-indigo-600 px-6 py-3 rounded-full"
+                disabled={unskipLoading}
+                style={{ opacity: unskipLoading ? 0.6 : 1 }}
+              >
+                {unskipLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text className="text-white font-semibold text-base">
+                    Unskip this result
+                  </Text>
+                )}
+              </TouchableOpacity>
             </View>
           ) : (
             <>
