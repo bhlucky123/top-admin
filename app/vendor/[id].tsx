@@ -8,6 +8,7 @@ import api from "@/utils/axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import {
+  Award,
   Building2,
   Check,
   ChevronRight,
@@ -638,6 +639,24 @@ export default function VendorDetailScreen() {
             </View>
             <Text className="text-gray-800 font-semibold text-sm">
               Assign Draw
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() =>
+              router.push({
+                pathname: "/vendor-config/[id]",
+                params: { id: String(vendorId) },
+              })
+            }
+            className="flex-1 bg-white rounded-2xl border border-gray-100 p-4 items-center shadow-sm"
+            activeOpacity={0.7}
+          >
+            <View className="w-10 h-10 rounded-xl bg-amber-50 items-center justify-center mb-2">
+              <Award size={18} color="#D97706" />
+            </View>
+            <Text className="text-gray-800 font-semibold text-sm">
+              Prize Config
             </Text>
           </TouchableOpacity>
         </View>
