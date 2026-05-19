@@ -14,6 +14,7 @@ import {
   MoveLeft,
   Pencil,
   Plus,
+  RotateCcw,
   Share2,
   Ticket,
   X,
@@ -208,6 +209,7 @@ export default function DrawResultScreen() {
   const [loading, setLoading] = useState(false);
   const [skipLoading, setSkipLoading] = useState(false);
   const [unskipLoading, setUnskipLoading] = useState(false);
+  const [undoLoading, setUndoLoading] = useState(false);
 
   const resultViewRef = useRef<any>(null);
 
@@ -448,6 +450,46 @@ export default function DrawResultScreen() {
     );
   };
 
+  const undoResultMutation = useMutation({
+    mutationFn: (payload: { result_id: number }) =>
+      api.post("/draw-result/undo-result/", payload),
+    onError: (error: any) => {
+      let errorMessage = "Failed to undo result.";
+      if (error?.message?.message) errorMessage = error.message.message;
+      else if (error?.detail) errorMessage = error.detail;
+      else if (typeof error?.message === "string") errorMessage = error.message;
+      Alert.alert("Error", errorMessage);
+    },
+  });
+
+  const handleUndoResult = (result: DrawResult) => {
+    setUndoLoading(true);
+    Alert.alert(
+      "Undo Result",
+      "Are you sure you want to undo this published result? This will delete the result and all associated winners. This action cannot be undone.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+          onPress: () => setUndoLoading(false),
+        },
+        {
+          text: "Undo",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await undoResultMutation.mutateAsync({ result_id: result.id });
+              refetch();
+              Alert.alert("Success", "Result has been undone successfully.");
+            } finally {
+              setUndoLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const canAdd = !data && !isSkipped;
   const canEditIcon = data && canEditResult(data.published_at) && !isSkipped;
   const canSkip =
@@ -591,6 +633,20 @@ export default function DrawResultScreen() {
                     className="w-12 h-12 rounded-full bg-yellow-500 items-center justify-center shadow-lg"
                   >
                     <Pencil size={22} color="#fff" />
+                  </TouchableOpacity>
+                )}
+                {canEditIcon && (
+                  <TouchableOpacity
+                    onPress={() => handleUndoResult(data!)}
+                    disabled={undoLoading}
+                    className="w-12 h-12 rounded-full bg-red-500 items-center justify-center shadow-lg"
+                    style={{ opacity: undoLoading ? 0.6 : 1 }}
+                  >
+                    {undoLoading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <RotateCcw size={22} color="#fff" />
+                    )}
                   </TouchableOpacity>
                 )}
               </View>
