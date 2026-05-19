@@ -68,7 +68,7 @@ export default function DrawDetailScreen() {
     {
       key: "subtype-limits",
       label: "Sub-Type Limits",
-      description: "Max booking count per sub-type for this draw.",
+      description: "Limit numbers or ranges per sub-type for this draw.",
       icon: <Gauge size={22} color="#7C3AED" />,
       bg: "bg-violet-50",
       onPress: () =>
