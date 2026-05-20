@@ -63,7 +63,7 @@ export default function RootLayout() {
             options={{ headerShown: false }}
           />
           <Stack.Screen
-            name="draw/[id]/subtype-limits"
+            name="draw/[id]/global-limit-count"
             options={{ headerShown: false }}
           />
           <Stack.Screen name="+not-found" options={{ title: "Not Found" }} />
