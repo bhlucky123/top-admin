@@ -66,15 +66,15 @@ export default function DrawDetailScreen() {
         }),
     },
     {
-      key: "subtype-limits",
-      label: "Sub-Type Limits",
-      description: "Limit numbers or ranges per sub-type for this draw.",
+      key: "global-limit-count",
+      label: "Global Limit Count",
+      description: "Set max booking count per number for this draw.",
       icon: <Gauge size={22} color="#7C3AED" />,
       bg: "bg-violet-50",
       onPress: () =>
         router.push({
-          pathname: "/draw/[id]/subtype-limits",
-          params: { id: drawId, name: drawName },
+          pathname: "/draw/[id]/global-limit-count",
+          params: { id: drawId, name: drawName, type: drawType },
         }),
     },
   ];

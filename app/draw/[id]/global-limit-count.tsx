@@ -19,14 +19,13 @@ import {
 } from "react-native";
 import { ALERT_TYPE, Dialog } from "react-native-alert-notification";
 
-type SubTypeValue = "A" | "B" | "C" | "AB" | "BC" | "AC" | "SUPER" | "BOX";
-type NumberType = "single_digit" | "double_digit" | "triple_digit";
+type NumberType = "single_digit" | "double_digit" | "triple_digit" | "four_digit";
 type LimitType = "single_number" | "range";
+type DrawType = "default" | "kerala" | "tamil_nadu";
 
-type GlobalSubtypeLimit = {
+type GlobalLimitCount = {
   id: number;
   draw: number;
-  sub_type: SubTypeValue;
   number: string | null;
   count: number;
   number_type: NumberType;
@@ -35,42 +34,38 @@ type GlobalSubtypeLimit = {
   range_end: string | null;
 };
 
-const SUBTYPE_OPTIONS: { value: SubTypeValue; label: string; numberType: NumberType }[] = [
-  { value: "A", label: "A", numberType: "single_digit" },
-  { value: "B", label: "B", numberType: "single_digit" },
-  { value: "C", label: "C", numberType: "single_digit" },
-  { value: "AB", label: "AB", numberType: "double_digit" },
-  { value: "BC", label: "BC", numberType: "double_digit" },
-  { value: "AC", label: "AC", numberType: "double_digit" },
-  { value: "SUPER", label: "SUPER", numberType: "triple_digit" },
-  { value: "BOX", label: "BOX", numberType: "triple_digit" },
-];
+const DRAW_TYPE_NUMBER_TYPES: Record<DrawType, { value: NumberType; label: string }[]> = {
+  default: [
+    { value: "single_digit", label: "1 Digit" },
+    { value: "double_digit", label: "2 Digit" },
+    { value: "triple_digit", label: "3 Digit" },
+  ],
+  kerala: [
+    { value: "four_digit", label: "4 Digit" },
+  ],
+  tamil_nadu: [
+    { value: "triple_digit", label: "3 Digit" },
+  ],
+};
 
-const SUBTYPE_GROUPS = [
-  { title: "Single Digit", subtypes: ["A", "B", "C"] },
-  { title: "Double Digit", subtypes: ["AB", "BC", "AC"] },
-  { title: "Triple Digit", subtypes: ["SUPER", "BOX"] },
-];
+const getDigitsForNumberType = (nt: NumberType) => {
+  switch (nt) {
+    case "single_digit": return 1;
+    case "double_digit": return 2;
+    case "triple_digit": return 3;
+    case "four_digit": return 4;
+    default: return 1;
+  }
+};
 
-const FILTER_SUBTYPES: { value: SubTypeValue | "all"; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "A", label: "A" },
-  { value: "B", label: "B" },
-  { value: "C", label: "C" },
-  { value: "AB", label: "AB" },
-  { value: "BC", label: "BC" },
-  { value: "AC", label: "AC" },
-  { value: "SUPER", label: "SUP" },
-  { value: "BOX", label: "BOX" },
-];
+const TYPE_LABEL: Record<string, string> = {
+  single_digit: "1D",
+  double_digit: "2D",
+  triple_digit: "3D",
+  four_digit: "4D",
+};
 
-const getDigitsForNumberType = (nt: NumberType) =>
-  nt === "single_digit" ? 1 : nt === "double_digit" ? 2 : 3;
-
-const getNumberTypeForSubtype = (st: SubTypeValue): NumberType =>
-  SUBTYPE_OPTIONS.find((o) => o.value === st)?.numberType ?? "single_digit";
-
-const API_BASE = "/draw/global-subtype-limit";
+const API_BASE = "/draw/global-limit-count";
 
 const PillTabs = ({
   options,
@@ -92,7 +87,7 @@ const PillTabs = ({
           onPress={() => onSelect(opt.value)}
           disabled={disabled}
           activeOpacity={0.7}
-          className={`px-4 py-2.5 rounded-lg items-center ${active ? "bg-indigo-600" : "bg-white border border-gray-200"}`}
+          className={`flex-1 py-2.5 rounded-lg items-center ${active ? "bg-indigo-600" : "bg-white border border-gray-200"}`}
         >
           <Text className={`text-sm font-bold ${active ? "text-white" : "text-gray-600"}`}>
             {opt.label}
@@ -103,53 +98,15 @@ const PillTabs = ({
   </View>
 );
 
-const SubtypeSelector = ({
-  selected,
-  onSelect,
-  disabled,
-}: {
-  selected: SubTypeValue;
-  onSelect: (v: SubTypeValue) => void;
-  disabled?: boolean;
-}) => (
-  <View className="gap-2">
-    {SUBTYPE_GROUPS.map((group) => (
-      <View key={group.title}>
-        <Text className="text-xs font-semibold text-gray-400 mb-1 ml-0.5">
-          {group.title}
-        </Text>
-        <View className="flex-row gap-2">
-          {group.subtypes.map((st) => {
-            const active = selected === st;
-            return (
-              <TouchableOpacity
-                key={st}
-                onPress={() => onSelect(st as SubTypeValue)}
-                disabled={disabled}
-                activeOpacity={0.7}
-                className={`flex-1 py-2.5 rounded-lg items-center ${active ? "bg-indigo-600" : "bg-white border border-gray-200"}`}
-              >
-                <Text className={`text-sm font-bold ${active ? "text-white" : "text-gray-600"}`}>
-                  {st}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-    ))}
-  </View>
-);
-
 const LimitRow = memo(
   ({
     item,
     updateMutation,
     onDeletePress,
   }: {
-    item: GlobalSubtypeLimit;
+    item: GlobalLimitCount;
     updateMutation: any;
-    onDeletePress: (item: GlobalSubtypeLimit) => void;
+    onDeletePress: (item: GlobalLimitCount) => void;
   }) => {
     const [editCount, setEditCount] = useState(item.count.toString());
     const [isEditing, setIsEditing] = useState(false);
@@ -159,24 +116,20 @@ const LimitRow = memo(
         ? `${item.range_start}-${item.range_end}`
         : item.number;
 
-    const typeLabel =
-      { single_digit: "1D", double_digit: "2D", triple_digit: "3D" }[item.number_type] ?? "";
+    const typeLabel = TYPE_LABEL[item.number_type] ?? "";
 
     return (
       <View
         className="flex-row items-center border-b border-gray-100 bg-white px-3 py-3"
         style={{ minHeight: 52 }}
       >
-        <View style={{ width: "20%" }}>
-          <Text className="text-sm font-bold text-indigo-600">{item.sub_type}</Text>
-        </View>
-        <View style={{ width: "25%" }}>
+        <View style={{ width: "30%" }}>
           <Text className="text-base font-bold text-gray-900">{displayNumber}</Text>
         </View>
-        <View style={{ width: "10%" }}>
+        <View style={{ width: "15%" }}>
           <Text className="text-sm font-semibold text-gray-500">{typeLabel}</Text>
         </View>
-        <View style={{ width: "18%" }}>
+        <View style={{ width: "20%" }}>
           {isEditing ? (
             <TextInput
               className="text-center text-sm font-bold bg-blue-50 rounded-lg px-2 py-2 border border-blue-200"
@@ -193,7 +146,7 @@ const LimitRow = memo(
             </Text>
           )}
         </View>
-        <View style={{ width: "27%" }} className="flex-row justify-end gap-2">
+        <View style={{ width: "35%" }} className="flex-row justify-end gap-2">
           {isEditing ? (
             <>
               <TouchableOpacity
@@ -253,15 +206,17 @@ const LimitRow = memo(
   }
 );
 
-export default function DrawSubTypeLimitsScreen() {
+export default function GlobalLimitCountScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
+  const { id, name, type } = useLocalSearchParams<{ id: string; name?: string; type?: string }>();
   const drawId = Number(id);
   const drawName = name || `Draw #${id}`;
+  const drawType = (type as DrawType) || "default";
 
-  const [subType, setSubType] = useState<SubTypeValue>("A");
+  const numberTypeOptions = DRAW_TYPE_NUMBER_TYPES[drawType] || DRAW_TYPE_NUMBER_TYPES.default;
+  const [numberType, setNumberType] = useState<NumberType>(numberTypeOptions[0].value);
   const [limitType, setLimitType] = useState<LimitType>("single_number");
   const [newNumber, setNewNumber] = useState("");
   const [newRangeStart, setNewRangeStart] = useState("");
@@ -272,12 +227,11 @@ export default function DrawSubTypeLimitsScreen() {
   const [errorFields, setErrorFields] = useState<
     ("number" | "rangeStart" | "rangeEnd" | "count")[]
   >([]);
-  const [filterSubType, setFilterSubType] = useState<SubTypeValue | "all">("all");
+  const [filterNumberType, setFilterNumberType] = useState<NumberType | "all">("all");
 
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [deleteItem, setDeleteItem] = useState<GlobalSubtypeLimit | null>(null);
+  const [deleteItem, setDeleteItem] = useState<GlobalLimitCount | null>(null);
 
-  const numberType = getNumberTypeForSubtype(subType);
   const maxDigits = getDigitsForNumberType(numberType);
 
   const clearValidation = () => {
@@ -285,26 +239,26 @@ export default function DrawSubTypeLimitsScreen() {
     setErrorFields([]);
   };
 
-  const queryKey = [API_BASE, drawId, filterSubType];
+  const queryKey = [API_BASE, drawId, filterNumberType];
 
   const {
     data: limits,
     isLoading,
     isFetching,
     error,
-  } = useQuery<GlobalSubtypeLimit[]>({
+  } = useQuery<GlobalLimitCount[]>({
     queryKey,
     queryFn: async () => {
       let url = `${API_BASE}/?draw__id=${drawId}`;
-      if (filterSubType !== "all") url += `&sub_type=${filterSubType}`;
-      return api.get<GlobalSubtypeLimit[]>(url).then((r) => r.data);
+      if (filterNumberType !== "all") url += `&number_type=${filterNumberType}`;
+      return api.get<GlobalLimitCount[]>(url).then((r) => r.data);
     },
     enabled: !!drawId,
     placeholderData: (prev) => prev,
   });
 
   const addMutation = useMutation({
-    mutationFn: (payload: Omit<GlobalSubtypeLimit, "id">) =>
+    mutationFn: (payload: Omit<GlobalLimitCount, "id">) =>
       api.post(`${API_BASE}/`, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [API_BASE, drawId] });
@@ -367,7 +321,7 @@ export default function DrawSubTypeLimitsScreen() {
     },
   });
 
-  const handleDeletePress = useCallback((item: GlobalSubtypeLimit) => {
+  const handleDeletePress = useCallback((item: GlobalLimitCount) => {
     setDeleteItem(item);
     setDeleteModalVisible(true);
   }, []);
@@ -437,7 +391,6 @@ export default function DrawSubTypeLimitsScreen() {
       setIsSubmitting(true);
       addMutation.mutate({
         draw: drawId,
-        sub_type: subType,
         number: trimmed,
         count: countNum,
         number_type: numberType,
@@ -466,7 +419,6 @@ export default function DrawSubTypeLimitsScreen() {
       setIsSubmitting(true);
       addMutation.mutate({
         draw: drawId,
-        sub_type: subType,
         number: null,
         count: countNum,
         number_type: numberType,
@@ -478,6 +430,11 @@ export default function DrawSubTypeLimitsScreen() {
   };
 
   const borderColor = (hasError: boolean) => (hasError ? "#EF4444" : "#E5E7EB");
+
+  const filterOptions: { value: string; label: string }[] = [
+    { value: "all", label: "All" },
+    ...numberTypeOptions,
+  ];
 
   const renderHeader = () => (
     <View>
@@ -491,7 +448,7 @@ export default function DrawSubTypeLimitsScreen() {
           >
             <MoveLeft size={22} color="#4B5563" />
           </TouchableOpacity>
-          <Text className="text-xl font-bold text-gray-800">Sub-Type Limits</Text>
+          <Text className="text-xl font-bold text-gray-800">Global Limit Count</Text>
           <View className="w-10 h-10 rounded-full bg-indigo-50 items-center justify-center">
             <Shield size={18} color="#4F46E5" />
           </View>
@@ -509,23 +466,26 @@ export default function DrawSubTypeLimitsScreen() {
       {/* Add form */}
       <View className="mx-4 mt-4">
         <View className="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
-          {/* Sub-type selector */}
-          <View className="mb-3">
-            <Text className="text-xs font-bold text-gray-500 uppercase mb-2">
-              Sub-Type
-            </Text>
-            <SubtypeSelector
-              selected={subType}
-              onSelect={(v) => {
-                clearValidation();
-                setSubType(v);
-                setNewNumber("");
-                setNewRangeStart("");
-                setNewRangeEnd("");
-              }}
-              disabled={isSubmitting}
-            />
-          </View>
+          {/* Number type selector */}
+          {numberTypeOptions.length > 1 && (
+            <View className="mb-3">
+              <Text className="text-xs font-bold text-gray-500 uppercase mb-2">
+                Number Type
+              </Text>
+              <PillTabs
+                options={numberTypeOptions}
+                selected={numberType}
+                onSelect={(v) => {
+                  clearValidation();
+                  setNumberType(v as NumberType);
+                  setNewNumber("");
+                  setNewRangeStart("");
+                  setNewRangeEnd("");
+                }}
+                disabled={isSubmitting}
+              />
+            </View>
+          )}
 
           {/* Limit type */}
           <View className="mb-3">
@@ -630,50 +590,49 @@ export default function DrawSubTypeLimitsScreen() {
         </View>
 
         {/* Filter */}
-        <View className="mb-3">
-          <View className="flex-row flex-wrap gap-2">
-            {FILTER_SUBTYPES.map((f) => {
-              const active = filterSubType === f.value;
-              return (
-                <TouchableOpacity
-                  key={f.value}
-                  onPress={() => setFilterSubType(f.value as any)}
-                  activeOpacity={0.7}
-                  className={`px-3 py-2 rounded-lg ${active ? "bg-indigo-600" : "bg-white border border-gray-200"}`}
-                >
-                  <Text
-                    className={`text-xs font-bold ${active ? "text-white" : "text-gray-600"}`}
+        {filterOptions.length > 2 && (
+          <View className="mb-3">
+            <View className="flex-row flex-wrap gap-2">
+              {filterOptions.map((f) => {
+                const active = filterNumberType === f.value;
+                return (
+                  <TouchableOpacity
+                    key={f.value}
+                    onPress={() => setFilterNumberType(f.value as any)}
+                    activeOpacity={0.7}
+                    className={`px-3 py-2 rounded-lg ${active ? "bg-indigo-600" : "bg-white border border-gray-200"}`}
                   >
-                    {f.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          {isFetching && (
-            <View className="items-center mt-2">
-              <ActivityIndicator size="small" color="#4F46E5" />
+                    <Text
+                      className={`text-xs font-bold ${active ? "text-white" : "text-gray-600"}`}
+                    >
+                      {f.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          )}
-        </View>
+            {isFetching && (
+              <View className="items-center mt-2">
+                <ActivityIndicator size="small" color="#4F46E5" />
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Table header */}
         <View className="flex-row items-center bg-gray-50 px-3 py-3 border-b border-gray-200 rounded-t-lg">
-          <View style={{ width: "20%" }}>
-            <Text className="text-xs font-bold text-gray-500 uppercase">Type</Text>
-          </View>
-          <View style={{ width: "25%" }}>
+          <View style={{ width: "30%" }}>
             <Text className="text-xs font-bold text-gray-500 uppercase">Number</Text>
           </View>
-          <View style={{ width: "10%" }}>
-            <Text className="text-xs font-bold text-gray-500 uppercase">Dig</Text>
+          <View style={{ width: "15%" }}>
+            <Text className="text-xs font-bold text-gray-500 uppercase">Type</Text>
           </View>
-          <View style={{ width: "18%" }}>
+          <View style={{ width: "20%" }}>
             <Text className="text-xs font-bold text-gray-500 uppercase text-center">
               Count
             </Text>
           </View>
-          <View style={{ width: "27%" }}>
+          <View style={{ width: "35%" }}>
             <Text className="text-xs font-bold text-gray-500 uppercase text-right">
               Actions
             </Text>
@@ -684,7 +643,7 @@ export default function DrawSubTypeLimitsScreen() {
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: GlobalSubtypeLimit }) => (
+    ({ item }: { item: GlobalLimitCount }) => (
       <View className="mx-4">
         <LimitRow
           item={item}
@@ -764,11 +723,7 @@ export default function DrawSubTypeLimitsScreen() {
               Delete Limit
             </Text>
             <Text className="text-sm text-gray-500 text-center mb-5">
-              Delete{" "}
-              <Text className="font-bold text-gray-800">
-                {deleteItem?.sub_type}
-              </Text>{" "}
-              limit for{" "}
+              Delete limit for{" "}
               <Text className="font-bold text-gray-800">
                 {deleteItem?.limit_type === "range"
                   ? `${deleteItem?.range_start ?? ""} - ${deleteItem?.range_end ?? ""}`
