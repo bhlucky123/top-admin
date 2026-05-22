@@ -28,6 +28,7 @@ type ClearBody = {
 type TransferBody = {
   draw_id: number;
   vendor_ids?: number[];
+  destination_vendor_ids?: number[];
   type?: MonitoringType | MonitoringType[];
   sub_type?: MonitoringSubType | MonitoringSubType[];
 };
