@@ -59,8 +59,9 @@ const TYPE_SHORT: Record<string, string> = {
 export default function BookingDetailsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ bill_number?: string }>();
+  const params = useLocalSearchParams<{ bill_number?: string; search?: string }>();
   const billNumber = params.bill_number;
+  const searchParam = params.search || "";
 
   const {
     data,
@@ -69,11 +70,13 @@ export default function BookingDetailsScreen() {
     refetch,
     isFetching,
   } = useQuery<BookingResponse>({
-    queryKey: ["booking-report-detail", billNumber],
-    queryFn: () =>
-      api
-        .get(`/draw-booking/booking-report/${billNumber}/`)
-        .then((r) => r.data),
+    queryKey: ["booking-report-detail", billNumber, searchParam],
+    queryFn: () => {
+      const q = searchParam ? `?search=${encodeURIComponent(searchParam)}` : "";
+      return api
+        .get(`/draw-booking/booking-report/${billNumber}/${q}`)
+        .then((r) => r.data);
+    },
     enabled: !!billNumber,
     retry: false,
   });
