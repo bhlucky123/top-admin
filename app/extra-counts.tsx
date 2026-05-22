@@ -27,6 +27,7 @@ import {
   Send,
   Ticket,
   Trash2,
+  Undo2,
   X,
 } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
@@ -647,20 +648,36 @@ export default function ExtraCountsScreen() {
             <MoveLeft size={22} color="#4B5563" />
           </TouchableOpacity>
           <Text className="text-xl font-bold text-gray-800">Extra Counts</Text>
-          <TouchableOpacity
-            onPress={() =>
-              router.push({
-                pathname: "/transfer-log",
-                params: drawId
-                  ? { drawId: String(drawId), drawName }
-                  : {},
-              })
-            }
-            className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
-            activeOpacity={0.7}
-          >
-            <History size={20} color="#4F46E5" />
-          </TouchableOpacity>
+          <View className="flex-row items-center gap-2">
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: "/recall-log",
+                  params: drawId
+                    ? { drawId: String(drawId), drawName }
+                    : {},
+                })
+              }
+              className="w-10 h-10 rounded-full bg-orange-50 items-center justify-center"
+              activeOpacity={0.7}
+            >
+              <Undo2 size={18} color="#ea580c" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: "/transfer-log",
+                  params: drawId
+                    ? { drawId: String(drawId), drawName }
+                    : {},
+                })
+              }
+              className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
+              activeOpacity={0.7}
+            >
+              <History size={20} color="#4F46E5" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
