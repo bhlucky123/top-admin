@@ -602,11 +602,11 @@ export default function ExtraCountsScreen() {
     if (vendorIds.length === 0) {
       Alert.alert(
         "No vendors selected",
-        "Select at least one vendor to transfer from."
+        "Select at least one recipient vendor."
       );
       return;
     }
-    const transferBody: any = { draw_id: drawId, vendor_ids: vendorIds };
+    const transferBody: any = { draw_id: drawId, destination_vendor_ids: vendorIds };
     if (types.length) transferBody.type = types;
     if (subTypes.length) transferBody.sub_type = subTypes;
     transferAll.mutate(
@@ -935,7 +935,7 @@ export default function ExtraCountsScreen() {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Transfer Extras</Text>
+              <Text style={styles.modalTitle}>Select Recipients</Text>
               <TouchableOpacity
                 onPress={() => setShowTransferPicker(false)}
                 style={styles.modalClose}
@@ -964,7 +964,7 @@ export default function ExtraCountsScreen() {
                 marginBottom: 10,
               }}
             >
-              Uncheck any vendors you don't want to transfer from.
+              Select which vendors should receive the transferred bookings.
             </Text>
 
             <View
@@ -1157,7 +1157,7 @@ export default function ExtraCountsScreen() {
                       fontWeight: "700",
                     }}
                   >
-                    Transfer {selectedTransferVendorIds.size} vendor
+                    Transfer to {selectedTransferVendorIds.size} vendor
                     {selectedTransferVendorIds.size === 1 ? "" : "s"}
                   </Text>
                 )}
