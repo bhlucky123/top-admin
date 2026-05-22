@@ -292,9 +292,11 @@ export default function RecallLogScreen() {
   const drawId = params.drawId ? Number(params.drawId) : null;
   const drawNameFromParams = params.drawName || "";
 
-  const [vendorId, setVendorId] = useState<number | null>(null);
+  const [fromVendorId, setFromVendorId] = useState<number | null>(null);
+  const [toVendorId, setToVendorId] = useState<number | null>(null);
   const [todayOnly, setTodayOnly] = useState(true);
-  const [showVendorPicker, setShowVendorPicker] = useState(false);
+  const [showFromVendorPicker, setShowFromVendorPicker] = useState(false);
+  const [showToVendorPicker, setShowToVendorPicker] = useState(false);
 
   const { data: vendors = [] } = useQuery<Vendor[]>({
     queryKey: ["monitoring-vendors"],
@@ -306,8 +308,8 @@ export default function RecallLogScreen() {
   });
 
   const queryKey = useMemo(
-    () => ["recall-log", drawId, vendorId, todayOnly],
-    [drawId, vendorId, todayOnly]
+    () => ["recall-log", drawId, fromVendorId, toVendorId, todayOnly],
+    [drawId, fromVendorId, toVendorId, todayOnly]
   );
 
   const PAGE_SIZE = 50;
@@ -337,7 +339,8 @@ export default function RecallLogScreen() {
         offset: pageParam,
       };
       if (drawId) q.draw_session__draw__id = drawId;
-      if (vendorId) q.vendor__id = vendorId;
+      if (fromVendorId) q.from_vendor__id = fromVendorId;
+      if (toVendorId) q.to_vendor__id = toVendorId;
       if (todayOnly) {
         const now = new Date();
         const yyyy = now.getFullYear();
@@ -379,11 +382,13 @@ export default function RecallLogScreen() {
   const totalAvailable = data?.pages?.[0]?.count ?? items.length;
 
   const drawName = drawNameFromParams || (drawId ? `Draw #${drawId}` : "");
-  const vendorName = vendors.find((v) => v.id === vendorId)?.name;
-  const hasFilters = !!vendorId || !todayOnly;
+  const fromVendorName = vendors.find((v) => v.id === fromVendorId)?.name;
+  const toVendorName = vendors.find((v) => v.id === toVendorId)?.name;
+  const hasFilters = !!fromVendorId || !!toVendorId || !todayOnly;
 
   const clearAll = () => {
-    setVendorId(null);
+    setFromVendorId(null);
+    setToVendorId(null);
     setTodayOnly(true);
   };
 
@@ -452,10 +457,17 @@ export default function RecallLogScreen() {
         ) : null}
         <FilterRow
           icon={<Building2 size={14} color="#ea580c" />}
-          label="Vendor"
-          value={vendorName || "All"}
-          active={!!vendorId}
-          onPress={() => setShowVendorPicker(true)}
+          label="From"
+          value={fromVendorName || "All"}
+          active={!!fromVendorId}
+          onPress={() => setShowFromVendorPicker(true)}
+        />
+        <FilterRow
+          icon={<Building2 size={14} color="#ea580c" />}
+          label="To"
+          value={toVendorName || "All"}
+          active={!!toVendorId}
+          onPress={() => setShowToVendorPicker(true)}
         />
 
         <TouchableOpacity
@@ -641,14 +653,24 @@ export default function RecallLogScreen() {
       )}
 
       <PickerModal
-        visible={showVendorPicker}
-        title="Filter by Vendor"
+        visible={showFromVendorPicker}
+        title="Filter by From Vendor"
         clearLabel="All vendors"
         searchPlaceholder="Search vendors..."
         items={vendors}
-        selectedId={vendorId}
-        onSelect={(v) => setVendorId(v ? v.id : null)}
-        onClose={() => setShowVendorPicker(false)}
+        selectedId={fromVendorId}
+        onSelect={(v) => setFromVendorId(v ? v.id : null)}
+        onClose={() => setShowFromVendorPicker(false)}
+      />
+      <PickerModal
+        visible={showToVendorPicker}
+        title="Filter by To Vendor"
+        clearLabel="All vendors"
+        searchPlaceholder="Search vendors..."
+        items={vendors}
+        selectedId={toVendorId}
+        onSelect={(v) => setToVendorId(v ? v.id : null)}
+        onClose={() => setShowToVendorPicker(false)}
       />
     </View>
   );
