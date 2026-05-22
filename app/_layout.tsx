@@ -63,10 +63,6 @@ export default function RootLayout() {
             options={{ headerShown: false }}
           />
           <Stack.Screen
-            name="recall-log"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
             name="draw/[id]/global-limit-count"
             options={{ headerShown: false }}
           />
