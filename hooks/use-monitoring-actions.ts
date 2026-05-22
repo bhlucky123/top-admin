@@ -51,8 +51,22 @@ export type TransferResponse = {
   transfers: TransferEntry[];
 };
 
+export type MonitoringTransferBatch = {
+  id: number;
+  draw_session: number;
+  draw_name?: string;
+  session_date: string;
+  sequence_number: number;
+  total_transferred: number;
+  total_entries: number;
+  initiated_by: number | null;
+  initiated_by_name: string | null;
+  transferred_at: string;
+};
+
 export type MonitoringTransferLog = {
   id: number;
+  batch: number | null;
   from_vendor_name?: string;
   to_vendor_name?: string;
   draw_name?: string;
