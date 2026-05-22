@@ -1,5 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
+  Activity,
   BarChart3,
   ChevronRight,
   FileText,
@@ -63,6 +64,18 @@ export default function DrawDetailScreen() {
         router.push({
           pathname: "/draw/[id]/winnings",
           params: { id: drawId, name: drawName },
+        }),
+    },
+    {
+      key: "monitor",
+      label: "Monitor",
+      description: "Extra counts, transfers and recall log.",
+      icon: <Activity size={22} color="#4F46E5" />,
+      bg: "bg-indigo-50",
+      onPress: () =>
+        router.push({
+          pathname: "/extra-counts",
+          params: { drawId, drawName },
         }),
     },
     {
