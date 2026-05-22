@@ -63,6 +63,10 @@ export default function RootLayout() {
             options={{ headerShown: false }}
           />
           <Stack.Screen
+            name="booking-details"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
             name="draw/[id]/global-limit-count"
             options={{ headerShown: false }}
           />

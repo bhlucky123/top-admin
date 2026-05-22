@@ -241,7 +241,14 @@ export default function DrawSalesReportScreen() {
             paddingBottom: rows.length > 0 ? 0 : insets.bottom + 40,
           }}
           renderItem={({ item, index }) => (
-            <View
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() =>
+                router.push({
+                  pathname: "/booking-details",
+                  params: { bill_number: String(item.bill_number) },
+                })
+              }
               className="flex-row items-center px-4 py-3 border-b border-gray-100"
               style={{ backgroundColor: index % 2 === 0 ? "#ffffff" : "#f9fafb" }}
             >
@@ -291,7 +298,7 @@ export default function DrawSalesReportScreen() {
               <Text className="flex-1 text-xs text-emerald-700 font-semibold text-right">
                 {fmtMoney(item.total_booking_amount)}
               </Text>
-            </View>
+            </TouchableOpacity>
           )}
           refreshControl={
             <RefreshControl
