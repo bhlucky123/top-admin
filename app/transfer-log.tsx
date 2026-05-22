@@ -21,6 +21,7 @@ import {
   MoveLeft,
   Search,
   Ticket,
+  Undo2,
   X,
 } from "lucide-react-native";
 import { useMemo, useState } from "react";
@@ -37,6 +38,25 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+type RecallLog = {
+  id: number;
+  from_vendor: number;
+  to_vendor: number;
+  from_vendor_name?: string;
+  to_vendor_name?: string;
+  draw_name?: string;
+  session_date?: string;
+  number: string;
+  recalled_count: number;
+  original_transferred_count: number;
+  type: MonitoringType;
+  sub_type: MonitoringSubType;
+  recalled_at: string;
+  triggered_by_booking_id?: number;
+};
+
+type Tab = "transfers" | "recalls";
 
 const COL_FLEX = {
   from: 3,
@@ -102,7 +122,9 @@ function PickerModal<T extends { id: number; name: string }>({
               onClose();
             }}
           >
-            <Text style={pickerStyles.clearText}>{clearLabel}</Text>
+            <Text style={pickerStyles.clearText}>
+              {clearLabel}
+            </Text>
           </TouchableOpacity>
           <FlatList
             data={filtered}
@@ -150,20 +172,28 @@ function FilterRow({
   value,
   active,
   onPress,
+  accentBg,
+  accentBorder,
+  accentText,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   active: boolean;
   onPress: () => void;
+  accentBg?: string;
+  accentBorder?: string;
+  accentText?: string;
 }) {
+  const bg = accentBg || "bg-indigo-50";
+  const border = accentBorder || "border-indigo-200";
+  const text = accentText || "text-indigo-700";
   return (
     <TouchableOpacity
       onPress={onPress}
-      className={`flex-row items-center justify-between px-3 py-2.5 rounded-xl border ${active
-          ? "bg-indigo-50 border-indigo-200"
-          : "bg-gray-50 border-gray-200"
-        }`}
+      className={`flex-row items-center justify-between px-3 py-2.5 rounded-xl border ${
+        active ? `${bg} ${border}` : "bg-gray-50 border-gray-200"
+      }`}
     >
       <View className="flex-row items-center">
         {icon}
@@ -173,8 +203,7 @@ function FilterRow({
       </View>
       <View className="flex-row items-center">
         <Text
-          className={`text-sm font-medium ${active ? "text-indigo-700" : "text-gray-800"
-            }`}
+          className={`text-sm font-medium ${active ? text : "text-gray-800"}`}
           numberOfLines={1}
         >
           {value}
@@ -185,18 +214,18 @@ function FilterRow({
   );
 }
 
-function TableHeader() {
+function TransferTableHeader() {
   return (
-    <View style={tableStyles.headerRow}>
-      <Text style={[tableStyles.headerCell, { flex: COL_FLEX.from }]}>
+    <View style={transferTableStyles.headerRow}>
+      <Text style={[transferTableStyles.headerCell, { flex: COL_FLEX.from }]}>
         From
       </Text>
-      <Text style={[tableStyles.headerCell, { flex: COL_FLEX.to }]}>
+      <Text style={[transferTableStyles.headerCell, { flex: COL_FLEX.to }]}>
         To
       </Text>
       <Text
         style={[
-          tableStyles.headerCell,
+          transferTableStyles.headerCell,
           { flex: COL_FLEX.number, textAlign: "center" },
         ]}
       >
@@ -204,7 +233,7 @@ function TableHeader() {
       </Text>
       <Text
         style={[
-          tableStyles.headerCell,
+          transferTableStyles.headerCell,
           { flex: COL_FLEX.count, textAlign: "right" },
         ]}
       >
@@ -214,7 +243,7 @@ function TableHeader() {
   );
 }
 
-function TableRow({
+function TransferTableRow({
   item,
   even,
 }: {
@@ -224,30 +253,30 @@ function TableRow({
   return (
     <View
       style={[
-        tableStyles.row,
+        transferTableStyles.row,
         { backgroundColor: even ? "#ffffff" : "#f8fafc" },
       ]}
     >
-      <View style={[tableStyles.cellBox, { flex: COL_FLEX.from }]}>
-        <Text style={tableStyles.cellText} numberOfLines={1}>
+      <View style={[transferTableStyles.cellBox, { flex: COL_FLEX.from }]}>
+        <Text style={transferTableStyles.cellText} numberOfLines={1}>
           {item.from_vendor_name || `#${item.from_vendor}`}
         </Text>
-        <Text style={tableStyles.cellSub} numberOfLines={1}>
+        <Text style={transferTableStyles.cellSub} numberOfLines={1}>
           {TYPE_LABELS[item.type]} · {SUB_TYPE_LABELS[item.sub_type]}
         </Text>
       </View>
-      <View style={[tableStyles.cellBox, { flex: COL_FLEX.to }]}>
-        <Text style={tableStyles.cellText} numberOfLines={1}>
+      <View style={[transferTableStyles.cellBox, { flex: COL_FLEX.to }]}>
+        <Text style={transferTableStyles.cellText} numberOfLines={1}>
           {item.to_vendor_name || `#${item.to_vendor}`}
         </Text>
-        <Text style={tableStyles.cellSub} numberOfLines={1}>
+        <Text style={transferTableStyles.cellSub} numberOfLines={1}>
           {item.session_date}
         </Text>
       </View>
       <Text
         style={[
-          tableStyles.cellText,
-          tableStyles.cellBold,
+          transferTableStyles.cellText,
+          transferTableStyles.cellBold,
           { flex: COL_FLEX.number, textAlign: "center", paddingHorizontal: 8, paddingVertical: 10 },
         ]}
         numberOfLines={1}
@@ -256,12 +285,93 @@ function TableRow({
       </Text>
       <Text
         style={[
-          tableStyles.cellText,
-          tableStyles.cellCount,
+          transferTableStyles.cellText,
+          transferTableStyles.cellCount,
           { flex: COL_FLEX.count, paddingHorizontal: 8, paddingVertical: 10 },
         ]}
       >
         {item.count}
+      </Text>
+    </View>
+  );
+}
+
+function RecallTableHeader() {
+  return (
+    <View style={recallTableStyles.headerRow}>
+      <Text style={[recallTableStyles.headerCell, { flex: COL_FLEX.from }]}>
+        From
+      </Text>
+      <Text style={[recallTableStyles.headerCell, { flex: COL_FLEX.to }]}>
+        Recalled From
+      </Text>
+      <Text
+        style={[
+          recallTableStyles.headerCell,
+          { flex: COL_FLEX.number, textAlign: "center" },
+        ]}
+      >
+        Number
+      </Text>
+      <Text
+        style={[
+          recallTableStyles.headerCell,
+          { flex: COL_FLEX.count, textAlign: "right" },
+        ]}
+      >
+        Recalled
+      </Text>
+    </View>
+  );
+}
+
+function RecallTableRow({ item, even }: { item: RecallLog; even: boolean }) {
+  return (
+    <View
+      style={[
+        recallTableStyles.row,
+        { backgroundColor: even ? "#ffffff" : "#fff7ed" },
+      ]}
+    >
+      <View style={[recallTableStyles.cellBox, { flex: COL_FLEX.from }]}>
+        <Text style={recallTableStyles.cellText} numberOfLines={1}>
+          {item.from_vendor_name || `#${item.from_vendor}`}
+        </Text>
+        <Text style={recallTableStyles.cellSub} numberOfLines={1}>
+          {TYPE_LABELS[item.type]} · {SUB_TYPE_LABELS[item.sub_type]}
+        </Text>
+      </View>
+      <View style={[recallTableStyles.cellBox, { flex: COL_FLEX.to }]}>
+        <Text style={recallTableStyles.cellText} numberOfLines={1}>
+          {item.to_vendor_name || `#${item.to_vendor}`}
+        </Text>
+        <Text style={recallTableStyles.cellSub} numberOfLines={1}>
+          {item.session_date}
+        </Text>
+      </View>
+      <Text
+        style={[
+          recallTableStyles.cellText,
+          recallTableStyles.cellBold,
+          {
+            flex: COL_FLEX.number,
+            textAlign: "center",
+            paddingHorizontal: 8,
+            paddingVertical: 10,
+          },
+        ]}
+        numberOfLines={1}
+      >
+        {item.number}
+      </Text>
+      <Text
+        style={[
+          recallTableStyles.cellText,
+          recallTableStyles.cellCount,
+          { flex: COL_FLEX.count, paddingHorizontal: 8, paddingVertical: 10 },
+        ]}
+      >
+        {item.recalled_count}
       </Text>
     </View>
   );
@@ -275,6 +385,7 @@ export default function TransferLogScreen() {
   const drawId = params.drawId ? Number(params.drawId) : null;
   const drawNameFromParams = params.drawName || "";
 
+  const [tab, setTab] = useState<Tab>("transfers");
   const [fromVendorId, setFromVendorId] = useState<number | null>(null);
   const [toVendorId, setToVendorId] = useState<number | null>(null);
   const [todayOnly, setTodayOnly] = useState(true);
@@ -290,31 +401,41 @@ export default function TransferLogScreen() {
     retry: false,
   });
 
-  const queryKey = useMemo(
-    () => ["transfer-log", drawId, fromVendorId, toVendorId, todayOnly],
-    [drawId, fromVendorId, toVendorId, todayOnly]
-  );
+  const dateParam = useMemo(() => {
+    if (!todayOnly) return undefined;
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }, [todayOnly]);
 
+  // ─── Transfer query ───
   const PAGE_SIZE = 50;
 
-  type LogPage = {
+  type TransferPage = {
     results: MonitoringTransferLog[];
     count: number;
     next: string | null;
     previous: string | null;
   };
 
+  const transferQueryKey = useMemo(
+    () => ["transfer-log", drawId, fromVendorId, toVendorId, todayOnly],
+    [drawId, fromVendorId, toVendorId, todayOnly]
+  );
+
   const {
-    data,
-    isLoading,
-    isFetching,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage,
-    isError,
-    refetch,
-  } = useInfiniteQuery<LogPage, any>({
-    queryKey,
+    data: transferData,
+    isLoading: loadingTransfers,
+    isFetching: fetchingTransfers,
+    isFetchingNextPage: fetchingNextTransfers,
+    hasNextPage: hasNextTransfers,
+    fetchNextPage: fetchNextTransferPage,
+    isError: transferError,
+    refetch: refetchTransfers,
+  } = useInfiniteQuery<TransferPage, any>({
+    queryKey: transferQueryKey,
     initialPageParam: 0,
     queryFn: ({ pageParam = 0 }) => {
       const q: Record<string, any> = {
@@ -324,18 +445,10 @@ export default function TransferLogScreen() {
       if (drawId) q.draw_session__draw__id = drawId;
       if (fromVendorId) q.from_vendor__id = fromVendorId;
       if (toVendorId) q.to_vendor__id = toVendorId;
-      if (todayOnly) {
-        const now = new Date();
-        const yyyy = now.getFullYear();
-        const mm = String(now.getMonth() + 1).padStart(2, "0");
-        const dd = String(now.getDate()).padStart(2, "0");
-        q.draw_session__session_date = `${yyyy}-${mm}-${dd}`;
-      }
+      if (dateParam) q.draw_session__session_date = dateParam;
       return api
         .get("/draw-monitoring/transfer-log/", { params: q })
         .then((r) => {
-          // Normalize: backend now paginates; older deployments may still
-          // return a plain array.
           const d = r.data;
           if (Array.isArray(d)) {
             return {
@@ -343,9 +456,9 @@ export default function TransferLogScreen() {
               count: d.length,
               next: null,
               previous: null,
-            } as LogPage;
+            } as TransferPage;
           }
-          return d as LogPage;
+          return d as TransferPage;
         });
     },
     getNextPageParam: (lastPage, allPages) => {
@@ -359,12 +472,136 @@ export default function TransferLogScreen() {
     retry: false,
   });
 
-  const items: MonitoringTransferLog[] = useMemo(() => {
-    if (!data) return [];
-    return data.pages.flatMap((p) => p.results ?? []);
-  }, [data]);
+  const transferItems: MonitoringTransferLog[] = useMemo(() => {
+    if (!transferData) return [];
+    return transferData.pages.flatMap((p) => p.results ?? []);
+  }, [transferData]);
 
-  const totalAvailable = data?.pages?.[0]?.count ?? items.length;
+  const totalTransferAvailable = transferData?.pages?.[0]?.count ?? transferItems.length;
+
+  let totalTransferCount = 0;
+  for (const i of transferItems) totalTransferCount += i?.count ?? 0;
+
+  const transferTypeCounts = useMemo(() => {
+    const map: Record<MonitoringType, number> = {
+      single_digit: 0,
+      double_digit: 0,
+      triple_digit: 0,
+    };
+    for (const i of transferItems) map[i.type] = (map[i.type] || 0) + i.count;
+    return map;
+  }, [transferItems]);
+
+  const transferSubTypeCounts = useMemo(() => {
+    const map: Partial<Record<MonitoringSubType, number>> = {};
+    for (const i of transferItems)
+      map[i.sub_type] = (map[i.sub_type] || 0) + i.count;
+    return map;
+  }, [transferItems]);
+
+  // ─── Recall query ───
+
+  type RecallPage = {
+    results: RecallLog[];
+    count: number;
+    next: string | null;
+    previous: string | null;
+  };
+
+  const recallQueryKey = useMemo(
+    () => ["recall-log", drawId, fromVendorId, toVendorId, todayOnly],
+    [drawId, fromVendorId, toVendorId, todayOnly]
+  );
+
+  const {
+    data: recallData,
+    isLoading: loadingRecalls,
+    isFetching: fetchingRecalls,
+    isFetchingNextPage: fetchingNextRecalls,
+    hasNextPage: hasNextRecalls,
+    fetchNextPage: fetchNextRecallPage,
+    isError: recallError,
+    refetch: refetchRecalls,
+  } = useInfiniteQuery<RecallPage, any>({
+    queryKey: recallQueryKey,
+    initialPageParam: 0,
+    queryFn: ({ pageParam = 0 }) => {
+      const q: Record<string, any> = {
+        limit: PAGE_SIZE,
+        offset: pageParam,
+      };
+      if (drawId) q.draw_session__draw__id = drawId;
+      if (fromVendorId) q.from_vendor__id = fromVendorId;
+      if (toVendorId) q.to_vendor__id = toVendorId;
+      if (dateParam) q.draw_session__session_date = dateParam;
+      return api
+        .get("/draw-monitoring/recall-log/", { params: q })
+        .then((r) => {
+          const d = r.data;
+          if (Array.isArray(d)) {
+            return {
+              results: d,
+              count: d.length,
+              next: null,
+              previous: null,
+            } as RecallPage;
+          }
+          return d as RecallPage;
+        });
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage?.next) return undefined;
+      const loaded = allPages.reduce(
+        (acc, p) => acc + (p.results?.length ?? 0),
+        0
+      );
+      return loaded;
+    },
+    retry: false,
+  });
+
+  const recallItems: RecallLog[] = useMemo(() => {
+    if (!recallData) return [];
+    return recallData.pages.flatMap((p) => p.results ?? []);
+  }, [recallData]);
+
+  const totalRecallAvailable = recallData?.pages?.[0]?.count ?? recallItems.length;
+
+  let totalRecallCount = 0;
+  for (const i of recallItems) totalRecallCount += i?.recalled_count ?? 0;
+
+  const recallTypeCounts = useMemo(() => {
+    const map: Record<MonitoringType, number> = {
+      single_digit: 0,
+      double_digit: 0,
+      triple_digit: 0,
+    };
+    for (const i of recallItems) map[i.type] = (map[i.type] || 0) + i.recalled_count;
+    return map;
+  }, [recallItems]);
+
+  const recallSubTypeCounts = useMemo(() => {
+    const map: Partial<Record<MonitoringSubType, number>> = {};
+    for (const i of recallItems)
+      map[i.sub_type] = (map[i.sub_type] || 0) + i.recalled_count;
+    return map;
+  }, [recallItems]);
+
+  // ─── Derived state based on active tab ───
+
+  const isLoading = tab === "transfers" ? loadingTransfers : loadingRecalls;
+  const isFetching = tab === "transfers" ? fetchingTransfers : fetchingRecalls;
+  const isFetchingNextPage = tab === "transfers" ? fetchingNextTransfers : fetchingNextRecalls;
+  const hasNextPage = tab === "transfers" ? hasNextTransfers : hasNextRecalls;
+  const isError = tab === "transfers" ? transferError : recallError;
+  const refetch = tab === "transfers" ? refetchTransfers : refetchRecalls;
+  const items = tab === "transfers" ? transferItems : recallItems;
+  const totalAvailable = tab === "transfers" ? totalTransferAvailable : totalRecallAvailable;
+  const totalCount = tab === "transfers" ? totalTransferCount : totalRecallCount;
+  const typeCounts = tab === "transfers" ? transferTypeCounts : recallTypeCounts;
+  const subTypeCounts = tab === "transfers" ? transferSubTypeCounts : recallSubTypeCounts;
+
+  const fetchNextPage = tab === "transfers" ? fetchNextTransferPage : fetchNextRecallPage;
 
   const drawName = drawNameFromParams || (drawId ? `Draw #${drawId}` : "");
   const fromVendorName = vendors.find((v) => v.id === fromVendorId)?.name;
@@ -377,31 +614,14 @@ export default function TransferLogScreen() {
     setTodayOnly(true);
   };
 
-  let totalCount = 0;
-  for (const i of items) totalCount += i?.count ?? 0;
-
-  const typeCounts = useMemo(() => {
-    const map: Record<MonitoringType, number> = {
-      single_digit: 0,
-      double_digit: 0,
-      triple_digit: 0,
-    };
-    for (const i of items) map[i.type] = (map[i.type] || 0) + i.count;
-    return map;
-  }, [items]);
-
-  const subTypeCounts = useMemo(() => {
-    const map: Partial<Record<MonitoringSubType, number>> = {};
-    for (const i of items)
-      map[i.sub_type] = (map[i.sub_type] || 0) + i.count;
-    return map;
-  }, [items]);
-
   const handleEndReached = () => {
     if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
   };
+
+  const isTransfers = tab === "transfers";
+  const accent = isTransfers ? "#4F46E5" : "#ea580c";
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -417,23 +637,76 @@ export default function TransferLogScreen() {
           >
             <MoveLeft size={22} color="#4B5563" />
           </TouchableOpacity>
-          <Text className="text-xl font-bold text-gray-800">Transfer Log</Text>
-          <View className="w-10 h-10 rounded-full bg-indigo-50 items-center justify-center">
-            <History size={18} color="#4F46E5" />
+          <Text className="text-xl font-bold text-gray-800">
+            Transfer & Recall Log
+          </Text>
+          <View
+            className="w-10 h-10 rounded-full items-center justify-center"
+            style={{ backgroundColor: isTransfers ? "#EEF2FF" : "#fff7ed" }}
+          >
+            {isTransfers ? (
+              <History size={18} color="#4F46E5" />
+            ) : (
+              <Undo2 size={18} color="#ea580c" />
+            )}
           </View>
         </View>
       </View>
 
+      {/* Tab switcher */}
+      <View className="bg-white px-6 pt-3 pb-0">
+        <View className="flex-row bg-gray-100 rounded-xl p-1">
+          <TouchableOpacity
+            onPress={() => setTab("transfers")}
+            className={`flex-1 py-2.5 rounded-lg items-center ${
+              isTransfers ? "bg-white shadow-sm" : ""
+            }`}
+          >
+            <Text
+              className={`text-sm font-semibold ${
+                isTransfers ? "text-indigo-700" : "text-gray-500"
+              }`}
+            >
+              Transfers
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setTab("recalls")}
+            className={`flex-1 py-2.5 rounded-lg items-center ${
+              !isTransfers ? "bg-white shadow-sm" : ""
+            }`}
+          >
+            <Text
+              className={`text-sm font-semibold ${
+                !isTransfers ? "text-orange-600" : "text-gray-500"
+              }`}
+            >
+              Recalls
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* Filters */}
-      <View className="bg-white px-6 pt-4 pb-5 border-b border-gray-100 gap-2">
+      <View className="bg-white px-6 pt-3 pb-5 border-b border-gray-100 gap-2">
         {drawId ? (
-          <View className="flex-row items-center bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2.5">
-            <Ticket size={14} color="#4338CA" />
-            <Text className="text-[10px] text-indigo-500 font-semibold uppercase ml-2 mr-1">
+          <View
+            className="flex-row items-center rounded-xl px-3 py-2.5 border"
+            style={{
+              backgroundColor: isTransfers ? "#EEF2FF" : "#fff7ed",
+              borderColor: isTransfers ? "#E0E7FF" : "#ffedd5",
+            }}
+          >
+            <Ticket size={14} color={isTransfers ? "#4338CA" : "#c2410c"} />
+            <Text
+              className="text-[10px] font-semibold uppercase ml-2 mr-1"
+              style={{ color: isTransfers ? "#6366F1" : "#f97316" }}
+            >
               Draw
             </Text>
             <Text
-              className="text-indigo-800 font-bold text-sm flex-1"
+              className="font-bold text-sm flex-1"
+              style={{ color: isTransfers ? "#312e81" : "#9a3412" }}
               numberOfLines={1}
             >
               {drawName}
@@ -441,36 +714,50 @@ export default function TransferLogScreen() {
           </View>
         ) : null}
         <FilterRow
-          icon={<Building2 size={14} color="#6366F1" />}
+          icon={<Building2 size={14} color={accent} />}
           label="From"
           value={fromVendorName || "All"}
           active={!!fromVendorId}
           onPress={() => setShowFromVendorPicker(true)}
+          accentBg={isTransfers ? "bg-indigo-50" : "bg-orange-50"}
+          accentBorder={isTransfers ? "border-indigo-200" : "border-orange-200"}
+          accentText={isTransfers ? "text-indigo-700" : "text-orange-700"}
         />
         <FilterRow
-          icon={<Building2 size={14} color="#6366F1" />}
+          icon={<Building2 size={14} color={accent} />}
           label="To"
           value={toVendorName || "All"}
           active={!!toVendorId}
           onPress={() => setShowToVendorPicker(true)}
+          accentBg={isTransfers ? "bg-indigo-50" : "bg-orange-50"}
+          accentBorder={isTransfers ? "border-indigo-200" : "border-orange-200"}
+          accentText={isTransfers ? "text-indigo-700" : "text-orange-700"}
         />
 
         <TouchableOpacity
           onPress={() => setTodayOnly((p) => !p)}
-          className={`flex-row items-center justify-between px-3 py-2.5 rounded-xl border ${todayOnly
-              ? "bg-indigo-50 border-indigo-200"
+          className={`flex-row items-center justify-between px-3 py-2.5 rounded-xl border ${
+            todayOnly
+              ? isTransfers
+                ? "bg-indigo-50 border-indigo-200"
+                : "bg-orange-50 border-orange-200"
               : "bg-gray-50 border-gray-200"
-            }`}
+          }`}
         >
           <View className="flex-row items-center">
-            <History size={14} color="#6366F1" />
+            <History size={14} color={accent} />
             <Text className="ml-2 text-xs font-semibold text-gray-500">
               Date
             </Text>
           </View>
           <Text
-            className={`text-sm font-medium ${todayOnly ? "text-indigo-700" : "text-gray-800"
-              }`}
+            className={`text-sm font-medium ${
+              todayOnly
+                ? isTransfers
+                  ? "text-indigo-700"
+                  : "text-orange-700"
+                : "text-gray-800"
+            }`}
           >
             {todayOnly ? "Today only" : "All time"}
           </Text>
@@ -492,17 +779,28 @@ export default function TransferLogScreen() {
             <View className="flex-row gap-2 mt-1">
               <View className="px-3 py-1.5 rounded-lg bg-gray-100">
                 <Text className="text-gray-500 text-xs">
-                  Transfers{" "}
+                  {isTransfers ? "Transfers" : "Recalls"}{" "}
                   <Text className="text-gray-800 font-bold">
                     {items.length}
                     {totalAvailable > items.length ? ` / ${totalAvailable}` : ""}
                   </Text>
                 </Text>
               </View>
-              <View className="px-3 py-1.5 rounded-lg bg-indigo-50">
-                <Text className="text-indigo-500 text-xs">
-                  Total{" "}
-                  <Text className="text-indigo-700 font-bold">{totalCount}</Text>
+              <View
+                className="px-3 py-1.5 rounded-lg"
+                style={{ backgroundColor: isTransfers ? "#EEF2FF" : "#fff7ed" }}
+              >
+                <Text
+                  className="text-xs"
+                  style={{ color: isTransfers ? "#6366F1" : "#f97316" }}
+                >
+                  {isTransfers ? "Total" : "Total recalled"}{" "}
+                  <Text
+                    className="font-bold"
+                    style={{ color: isTransfers ? "#4338CA" : "#c2410c" }}
+                  >
+                    {totalCount}
+                  </Text>
                 </Text>
               </View>
             </View>
@@ -513,12 +811,19 @@ export default function TransferLogScreen() {
                   {(Object.keys(typeCounts) as MonitoringType[]).map((t) => (
                     <View
                       key={t}
-                      className="flex-1 bg-purple-50 rounded-lg px-3 py-2 items-center"
+                      className="flex-1 rounded-lg px-3 py-2 items-center"
+                      style={{ backgroundColor: isTransfers ? "#faf5ff" : "#fff7ed" }}
                     >
-                      <Text className="text-purple-400 text-[10px] font-semibold">
+                      <Text
+                        className="text-[10px] font-semibold"
+                        style={{ color: isTransfers ? "#a855f7" : "#fb923c" }}
+                      >
                         {TYPE_SHORT_LABELS[t]}
                       </Text>
-                      <Text className="text-purple-700 text-sm font-bold">
+                      <Text
+                        className="text-sm font-bold"
+                        style={{ color: isTransfers ? "#7e22ce" : "#c2410c" }}
+                      >
                         {typeCounts[t]}
                       </Text>
                     </View>
@@ -553,11 +858,12 @@ export default function TransferLogScreen() {
         <View className="flex-1 justify-center items-center px-8">
           <View className="bg-red-50 border border-red-200 rounded-2xl px-6 py-8 items-center w-full">
             <Text className="text-red-600 text-xl font-bold mb-2">
-              Failed to load transfer log
+              Failed to load {isTransfers ? "transfer" : "recall"} log
             </Text>
             <TouchableOpacity
               onPress={() => refetch()}
-              className="bg-indigo-600 px-8 py-3 rounded-xl mt-4"
+              className="px-8 py-3 rounded-xl mt-4"
+              style={{ backgroundColor: accent }}
             >
               <Text className="text-white font-bold text-base">Retry</Text>
             </TouchableOpacity>
@@ -565,7 +871,7 @@ export default function TransferLogScreen() {
         </View>
       ) : isLoading ? (
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#4F46E5" />
+          <ActivityIndicator size="large" color={accent} />
           <Text className="mt-4 text-gray-500">Loading...</Text>
         </View>
       ) : items.length === 0 ? (
@@ -575,42 +881,83 @@ export default function TransferLogScreen() {
             <RefreshControl
               refreshing={isFetching}
               onRefresh={refetch}
-              colors={["#4F46E5"]}
-              tintColor="#4F46E5"
+              colors={[accent]}
+              tintColor={accent}
             />
           }
         >
-          <History size={48} color="#D1D5DB" />
+          {isTransfers ? (
+            <History size={48} color="#D1D5DB" />
+          ) : (
+            <Undo2 size={48} color="#D1D5DB" />
+          )}
           <Text className="text-gray-400 text-lg mt-4">
-            {hasFilters ? "No transfers match these filters" : "No transfers yet"}
+            {hasFilters
+              ? `No ${isTransfers ? "transfers" : "recalls"} match these filters`
+              : `No ${isTransfers ? "transfers" : "recalls"} yet`}
           </Text>
         </ScrollView>
-      ) : (
+      ) : isTransfers ? (
         <View style={{ flex: 1, marginLeft: 14, marginRight: 14 }}>
-          <TableHeader />
+          <TransferTableHeader />
           <FlatList
-            data={items}
+            data={transferItems}
             keyExtractor={(item) => item.id.toString()}
             renderItem={({ item, index }) => (
-              <TableRow item={item} even={index % 2 === 0} />
+              <TransferTableRow item={item} even={index % 2 === 0} />
             )}
             contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
             onEndReached={handleEndReached}
             onEndReachedThreshold={0.4}
             refreshControl={
               <RefreshControl
-                refreshing={isFetching && !isFetchingNextPage}
-                onRefresh={refetch}
+                refreshing={fetchingTransfers && !fetchingNextTransfers}
+                onRefresh={refetchTransfers}
                 colors={["#4F46E5"]}
                 tintColor="#4F46E5"
               />
             }
             ListFooterComponent={
-              isFetchingNextPage ? (
+              fetchingNextTransfers ? (
                 <View style={{ paddingVertical: 16, alignItems: "center" }}>
                   <ActivityIndicator size="small" color="#4F46E5" />
                 </View>
-              ) : !hasNextPage && items.length > 0 ? (
+              ) : !hasNextTransfers && transferItems.length > 0 ? (
+                <View style={{ paddingVertical: 16, alignItems: "center" }}>
+                  <Text style={{ color: "#94a3b8", fontSize: 12 }}>
+                    End of log
+                  </Text>
+                </View>
+              ) : null
+            }
+          />
+        </View>
+      ) : (
+        <View style={{ flex: 1, marginLeft: 14, marginRight: 14 }}>
+          <RecallTableHeader />
+          <FlatList
+            data={recallItems}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item, index }) => (
+              <RecallTableRow item={item} even={index % 2 === 0} />
+            )}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+            onEndReached={handleEndReached}
+            onEndReachedThreshold={0.4}
+            refreshControl={
+              <RefreshControl
+                refreshing={fetchingRecalls && !fetchingNextRecalls}
+                onRefresh={refetchRecalls}
+                colors={["#ea580c"]}
+                tintColor="#ea580c"
+              />
+            }
+            ListFooterComponent={
+              fetchingNextRecalls ? (
+                <View style={{ paddingVertical: 16, alignItems: "center" }}>
+                  <ActivityIndicator size="small" color="#ea580c" />
+                </View>
+              ) : !hasNextRecalls && recallItems.length > 0 ? (
                 <View style={{ paddingVertical: 16, alignItems: "center" }}>
                   <Text style={{ color: "#94a3b8", fontSize: 12 }}>
                     End of log
@@ -646,7 +993,7 @@ export default function TransferLogScreen() {
   );
 }
 
-const tableStyles = StyleSheet.create({
+const transferTableStyles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     backgroundColor: "#EEF2FF",
@@ -687,6 +1034,51 @@ const tableStyles = StyleSheet.create({
   cellCount: {
     fontWeight: "700",
     color: "#4338CA",
+    textAlign: "right",
+  },
+});
+
+const recallTableStyles = StyleSheet.create({
+  headerRow: {
+    flexDirection: "row",
+    backgroundColor: "#fff7ed",
+    borderBottomWidth: 1,
+    borderBottomColor: "#fed7aa",
+  },
+  headerCell: {
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#9a3412",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  row: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  cellBox: {
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+  },
+  cellText: {
+    fontSize: 12,
+    color: "#1f2937",
+  },
+  cellSub: {
+    fontSize: 10,
+    color: "#9CA3AF",
+    marginTop: 2,
+  },
+  cellBold: {
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+  cellCount: {
+    fontWeight: "700",
+    color: "#ea580c",
     textAlign: "right",
   },
 });
