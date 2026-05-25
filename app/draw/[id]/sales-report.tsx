@@ -1,6 +1,7 @@
+import { useAuthStore } from "@/store/auth";
 import api from "@/utils/axios";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   Calendar,
@@ -8,13 +9,16 @@ import {
   MoveLeft,
   RotateCcw,
   Search,
+  Trash2,
   X,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Platform,
+  Pressable,
   RefreshControl,
   StatusBar,
   Text,
@@ -98,11 +102,15 @@ const BookingRow = React.memo(
   ({
     item,
     index,
+    canDelete,
     onPress,
+    onDelete,
   }: {
     item: SalesRow;
     index: number;
+    canDelete: boolean;
     onPress: (item: SalesRow) => void;
+    onDelete: (item: SalesRow) => void;
   }) => (
     <TouchableOpacity
       activeOpacity={0.7}
@@ -156,9 +164,19 @@ const BookingRow = React.memo(
       <Text className="flex-[0.9] text-[11px] text-emerald-700 font-semibold text-right">
         {fmtMoney(item.total_booking_amount)}
       </Text>
-      <View className="w-5 items-end">
-        <ChevronRight size={14} color="#D1D5DB" />
-      </View>
+      {canDelete ? (
+        <Pressable
+          className="w-5 items-end"
+          onPress={() => onDelete(item)}
+          hitSlop={10}
+        >
+          <Trash2 size={15} color="#EF4444" />
+        </Pressable>
+      ) : (
+        <View className="w-5 items-end">
+          <ChevronRight size={14} color="#D1D5DB" />
+        </View>
+      )}
     </TouchableOpacity>
   )
 );
@@ -166,6 +184,9 @@ const BookingRow = React.memo(
 export default function DrawSalesReportScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
+  const { hasFeature } = useAuthStore();
+  const canDeleteBooking = hasFeature("delete_booking");
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const drawId = Number(id);
   const drawName = name || `Draw #${drawId}`;
@@ -249,11 +270,48 @@ export default function DrawSalesReportScreen() {
     [router, debouncedSearch]
   );
 
+  const handleDeleteBooking = useCallback(
+    (booking: SalesRow) => {
+      if (!booking?.bill_number) return;
+      Alert.alert(
+        "Delete Booking",
+        `Are you sure you want to delete booking "${booking.bill_number}"? This will remove all booking details under this bill.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                await api.delete(
+                  `/draw-booking/delete/${booking.bill_number}/`
+                );
+                queryClient.invalidateQueries({
+                  queryKey: ["draw-sales-report"],
+                });
+                refetch();
+              } catch {
+                Alert.alert("Delete Failed", "Could not delete booking.");
+              }
+            },
+          },
+        ]
+      );
+    },
+    [queryClient, refetch]
+  );
+
   const renderItem = useCallback(
     ({ item, index }: { item: SalesRow; index: number }) => (
-      <BookingRow item={item} index={index} onPress={handleRowPress} />
+      <BookingRow
+        item={item}
+        index={index}
+        canDelete={canDeleteBooking}
+        onPress={handleRowPress}
+        onDelete={handleDeleteBooking}
+      />
     ),
-    [handleRowPress]
+    [handleRowPress, handleDeleteBooking, canDeleteBooking]
   );
 
   return (
