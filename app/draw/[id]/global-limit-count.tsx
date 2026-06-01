@@ -32,6 +32,9 @@ type GlobalLimitCount = {
   limit_type: LimitType;
   range_start: string | null;
   range_end: string | null;
+  config_level: string;
+  dealer: number | null;
+  vendor: number | null;
 };
 
 const DRAW_TYPE_NUMBER_TYPES: Record<DrawType, { value: NumberType; label: string }[]> = {
@@ -65,7 +68,7 @@ const TYPE_LABEL: Record<string, string> = {
   four_digit: "4D",
 };
 
-const API_BASE = "/draw/global-limit-count";
+const API_BASE = "/draw/limit-number-count";
 
 const PillTabs = ({
   options,
@@ -249,7 +252,7 @@ export default function GlobalLimitCountScreen() {
   } = useQuery<GlobalLimitCount[]>({
     queryKey,
     queryFn: async () => {
-      let url = `${API_BASE}/?draw__id=${drawId}`;
+      let url = `${API_BASE}/?draw__id=${drawId}&config_level=global`;
       if (filterNumberType !== "all") url += `&number_type=${filterNumberType}`;
       return api.get<GlobalLimitCount[]>(url).then((r) => r.data);
     },
