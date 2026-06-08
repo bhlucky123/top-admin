@@ -231,9 +231,7 @@ export default function DrawDailyReportScreen() {
           >
             {allGames && <Check size={13} color="#fff" />}
           </View>
-          <Text className="text-sm text-gray-700">
-            All Games (ignore this draw)
-          </Text>
+          <Text className="text-sm text-gray-700">All Games</Text>
         </TouchableOpacity>
       </View>
 
