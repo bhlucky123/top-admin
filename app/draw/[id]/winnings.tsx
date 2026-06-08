@@ -1,3 +1,4 @@
+import VendorFilter from "@/components/vendor-filter";
 import api from "@/utils/axios";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -70,8 +71,9 @@ export default function DrawWinningsScreen() {
   const [toDate, setToDate] = useState<Date>(startOfTomorrow());
   const [showFrom, setShowFrom] = useState(false);
   const [showTo, setShowTo] = useState(false);
+  const [vendorId, setVendorId] = useState<number | null>(null);
 
-  const filterKey = `${fromDate.toISOString()}..${toDate.toISOString()}`;
+  const filterKey = `${fromDate.toISOString()}..${toDate.toISOString()}..v${vendorId ?? "all"}`;
 
   const {
     data,
@@ -92,6 +94,7 @@ export default function DrawWinningsScreen() {
         date_time__lte: toDate.toISOString(),
         page: pageParam,
       };
+      if (vendorId) params.vendor = vendorId;
       return api
         .get("/draw-result/optimized-winners/", { params })
         .then((r) => r.data);
@@ -121,6 +124,7 @@ export default function DrawWinningsScreen() {
   const resetDates = () => {
     setFromDate(startOfToday());
     setToDate(startOfTomorrow());
+    setVendorId(null);
   };
 
   return (
@@ -154,7 +158,7 @@ export default function DrawWinningsScreen() {
       </View>
 
       {/* Filters */}
-      <View className="bg-white border-b border-gray-100 px-6 py-4">
+      <View className="bg-white border-b border-gray-100 px-6 py-4 gap-3">
         <View className="flex-row gap-3">
           <TouchableOpacity
             onPress={() => setShowFrom(true)}
@@ -187,6 +191,9 @@ export default function DrawWinningsScreen() {
             <Calendar size={16} color="#D97706" />
           </TouchableOpacity>
         </View>
+
+        {/* Vendor filter */}
+        <VendorFilter value={vendorId} onChange={setVendorId} />
       </View>
 
       {/* Table header */}

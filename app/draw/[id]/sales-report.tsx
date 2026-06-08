@@ -1,3 +1,4 @@
+import VendorFilter from "@/components/vendor-filter";
 import { useAuthStore } from "@/store/auth";
 import api from "@/utils/axios";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -195,6 +196,7 @@ export default function DrawSalesReportScreen() {
   const [toDate, setToDate] = useState<Date>(startOfTomorrow());
   const [showFrom, setShowFrom] = useState(false);
   const [showTo, setShowTo] = useState(false);
+  const [vendorId, setVendorId] = useState<number | null>(null);
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -204,7 +206,7 @@ export default function DrawSalesReportScreen() {
     return () => clearTimeout(handle);
   }, [search]);
 
-  const filterKey = `${fmtApiDay(fromDate)}..${fmtApiDay(toDate)}..${debouncedSearch}`;
+  const filterKey = `${fmtApiDay(fromDate)}..${fmtApiDay(toDate)}..${debouncedSearch}..v${vendorId ?? "all"}`;
 
   const {
     data,
@@ -226,6 +228,7 @@ export default function DrawSalesReportScreen() {
         page: pageParam,
       };
       if (debouncedSearch) params.search = debouncedSearch;
+      if (vendorId) params.vendor = vendorId;
       return api
         .get("/draw-booking/booking-report/", { params })
         .then((r) => r.data);
@@ -255,6 +258,7 @@ export default function DrawSalesReportScreen() {
   const resetDates = () => {
     setFromDate(startOfToday());
     setToDate(startOfTomorrow());
+    setVendorId(null);
   };
 
   const handleRowPress = useCallback(
@@ -400,6 +404,9 @@ export default function DrawSalesReportScreen() {
             <Calendar size={16} color="#6366F1" />
           </TouchableOpacity>
         </View>
+
+        {/* Vendor filter */}
+        <VendorFilter value={vendorId} onChange={setVendorId} />
 
         {/* Summary badges */}
         {!isLoading && rows.length > 0 && (
