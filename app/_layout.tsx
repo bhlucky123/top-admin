@@ -47,6 +47,10 @@ export default function RootLayout() {
             options={{ headerShown: false }}
           />
           <Stack.Screen
+            name="draw/[id]/daily-report"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
             name="draw/[id]/winnings"
             options={{ headerShown: false }}
           />

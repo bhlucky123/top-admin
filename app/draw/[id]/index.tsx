@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   Activity,
   BarChart3,
+  CalendarDays,
   ChevronRight,
   FileText,
   Gauge,
@@ -51,6 +52,18 @@ export default function DrawDetailScreen() {
       onPress: () =>
         router.push({
           pathname: "/draw/[id]/sales-report",
+          params: { id: drawId, name: drawName },
+        }),
+    },
+    {
+      key: "daily",
+      label: "Daily Report",
+      description: "Day-wise sale, winnings and balance summary.",
+      icon: <CalendarDays size={22} color="#0891B2" />,
+      bg: "bg-cyan-50",
+      onPress: () =>
+        router.push({
+          pathname: "/draw/[id]/daily-report",
           params: { id: drawId, name: drawName },
         }),
     },
