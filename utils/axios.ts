@@ -3,6 +3,7 @@ import { useAuthStore } from "@/store/auth";
 import axios from "axios";
 import { router } from "expo-router";
 import { config } from "./config";
+import { writeLog } from "./file-logger";
 
 const api = axios.create({
   baseURL: config.apiBaseUrl,
@@ -38,7 +39,9 @@ api.interceptors.response.use(
     const duration = metadata?.startTime ? Date.now() - metadata.startTime : 0;
     const method = response.config.method?.toUpperCase();
     const url = `${response.config.url || ""}`;
-    console.log(`[API] <-- ${method} ${url} | ${response.status} | ${duration}ms`);
+    const msg = `${method} ${url} ${response.status} ${duration}ms`;
+    console.log(`[API] ${msg}`);
+    writeLog(msg);
 
     if (response.status === 204) {
       return { ...response, data: null };
@@ -52,11 +55,10 @@ api.interceptors.response.use(
     const method = cfg?.method?.toUpperCase() || "?";
     const url = cfg ? `${cfg.baseURL || ""}${cfg.url || ""}` : "unknown";
     const status = error.response?.status || "NETWORK";
-    console.log(`[API] <-- ${method} ${url} | ${status} | ${duration}ms | FAILED`);
-
-    if (error.response?.data) {
-      console.log(`[API] Response body:`, JSON.stringify(error.response.data));
-    }
+    const body = error.response?.data ? ` body=${JSON.stringify(error.response.data).slice(0, 500)}` : "";
+    const errMsg = `${method} ${url} ${status} ${duration}ms FAILED${body}`;
+    console.log(`[API] ${errMsg}`);
+    writeLog(errMsg);
 
     if (
       error.request &&

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import "react-native-reanimated";
@@ -5,11 +6,14 @@ import "../global.css";
 
 import ReactQueryProvider from "@/providers/react-query-provider";
 import { AlertNotificationRoot } from "react-native-alert-notification";
+import { purgeOldLogs } from "@/utils/file-logger";
 
 export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
+
+  useEffect(() => { purgeOldLogs(); }, []);
 
   if (!loaded) return null;
 
