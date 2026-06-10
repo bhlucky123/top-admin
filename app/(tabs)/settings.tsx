@@ -1,12 +1,16 @@
 import { queryClient } from "@/providers/react-query-provider";
 import { useAuthStore } from "@/store/auth";
+import { getLogFilePaths } from "@/utils/file-logger";
 import {
   ChevronRight,
+  FileText,
   Info,
   LogOut,
   Shield,
   User,
 } from "lucide-react-native";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import {
   Alert,
   ScrollView,
@@ -145,6 +149,43 @@ export default function SettingsScreen() {
             iconBg="#F3F4F6"
             label="Version"
             value="1.0.0"
+          />
+        </View>
+
+        {/* Support */}
+        <Text className="text-gray-400 text-xs font-semibold uppercase tracking-wider ml-2 mb-2">
+          Support
+        </Text>
+        <View className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm mb-5">
+          <SettingItem
+            icon={FileText}
+            iconColor="#6366F1"
+            iconBg="#EEF2FF"
+            label="Send Logs"
+            value="Share app logs for debugging"
+            onPress={async () => {
+              try {
+                const paths = await getLogFilePaths();
+                if (paths.length === 0) {
+                  Alert.alert("No Logs", "No log files found.");
+                  return;
+                }
+                let combined = "";
+                for (const p of paths) {
+                  const name = p.split("/").pop() || p;
+                  const content = await FileSystem.readAsStringAsync(p);
+                  combined += `=== ${name} ===\n${content}\n\n`;
+                }
+                const tmpPath = `${FileSystem.cacheDirectory}app-logs.txt`;
+                await FileSystem.writeAsStringAsync(tmpPath, combined);
+                await Sharing.shareAsync(tmpPath, {
+                  mimeType: "text/plain",
+                  dialogTitle: "Send App Logs",
+                });
+              } catch {
+                Alert.alert("Error", "Failed to share logs.");
+              }
+            }}
           />
         </View>
 
