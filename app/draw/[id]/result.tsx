@@ -63,12 +63,12 @@ export type DrawResult = {
 };
 
 const KERALA_PRIZE_FIELDS = [
-  { key: "kl_first_prize_numbers", label: "1st Prize" },
-  { key: "kl_second_prize_numbers", label: "2nd Prize" },
-  { key: "kl_third_prize_numbers", label: "3rd Prize" },
-  { key: "kl_fourth_prize_numbers", label: "4th Prize" },
-  { key: "kl_fifth_prize_numbers", label: "5th Prize" },
-  { key: "kl_sixth_prize_numbers", label: "6th Prize" },
+  { key: "kl_first_prize_numbers", label: "1" },
+  { key: "kl_second_prize_numbers", label: "2" },
+  { key: "kl_third_prize_numbers", label: "3" },
+  { key: "kl_fourth_prize_numbers", label: "4" },
+  { key: "kl_fifth_prize_numbers", label: "5" },
+  { key: "kl_sixth_prize_numbers", label: "6" },
 ] as const;
 
 function isValidNumber(str: string, digits: number) {
@@ -121,7 +121,7 @@ function validateDrawResultFields(data: any, drawType?: string) {
   if (mainPrizeEntered) {
     const labels = ["First", "Second", "Third", "Fourth", "Fifth"];
     for (let i = 0; i < mainPrizes.length; i++) {
-      if (!mainPrizes[i] || !isValidNumber(mainPrizes[i]!, 3)) {
+      if (mainPrizes[i] && !isValidNumber(mainPrizes[i]!, 3)) {
         return `Please enter a valid 3-digit number for ${labels[i]} Prize.`;
       }
     }
@@ -783,24 +783,21 @@ export default function DrawResultScreen() {
                         (isTamilNadu
                           ? [{ label: "First Prize", value: result.first_prize }]
                           : [
-                              { label: "First Prize", value: result.first_prize },
-                              { label: "Second Prize", value: result.second_prize },
-                              { label: "Third Prize", value: result.third_prize },
-                              { label: "Fourth Prize", value: result.fourth_prize },
-                              { label: "Fifth Prize", value: result.fifth_prize },
+                              { label: "1", value: result.first_prize },
+                              { label: "2", value: result.second_prize },
+                              { label: "3", value: result.third_prize },
+                              { label: "4", value: result.fourth_prize },
+                              { label: "5", value: result.fifth_prize },
                             ]
                         ).map((row, idx) => (
                           <View
                             key={row.label}
                             className={`flex-row ${PRIZE_COLOURS[idx]} border-b border-gray-200`}
                           >
-                            <Text className="w-10 text-center py-2 text-[11px] font-medium border-r border-gray-200 bg-white/20">
-                              {idx + 1}
-                            </Text>
-                            <Text className="flex-1 py-2 text-[15px] font-bold text-center text-gray-800">
+                            <Text className="w-10 py-2 text-[15px] font-bold text-center text-gray-800">
                               {row.label}
                             </Text>
-                            <Text className="w-20 py-2 text-[16px] font-mono font-bold text-center border-l border-gray-200">
+                            <Text className="flex-1 py-2 text-[16px] font-mono font-bold text-center border-l border-gray-200">
                               {row.value}
                             </Text>
                           </View>
@@ -809,41 +806,31 @@ export default function DrawResultScreen() {
                       {/* Complementary grid - Default only */}
                       {drawType === "default" &&
                         result.complementary_prizes?.length > 0 && (
-                          <View className="border-t border-gray-200">
+                          <View className="border-t border-gray-200 pt-1">
                             <Text className="text-center text-xs font-semibold text-gray-500 py-1.5">
                               Complementary Prizes
                             </Text>
                             <View className="flex-row">
-                              {Array.from({ length: 3 }).map((_, colIdx) => (
-                                <View key={`col-${colIdx}`} className="flex-1">
-                                  {Array.from({
-                                    length: Math.ceil(
-                                      result.complementary_prizes.length / 3
-                                    ),
-                                  }).map((_, rowIdx) => {
-                                    const idx =
-                                      rowIdx +
-                                      colIdx *
-                                        Math.ceil(
-                                          result.complementary_prizes.length / 3
-                                        );
-                                    const prize =
-                                      result.complementary_prizes[idx];
-                                    return (
-                                      <Text
-                                        key={`cp-${colIdx}-${rowIdx}`}
-                                        className={`py-1.5 text-center text-[14px] font-mono font-bold border-b border-gray-100 ${
-                                          colIdx < 2
-                                            ? "border-r border-gray-100"
-                                            : ""
-                                        }`}
-                                      >
-                                        {prize || ""}
-                                      </Text>
-                                    );
-                                  })}
-                                </View>
-                              ))}
+                              {Array.from({ length: 3 }).map((_, colIdx) => {
+                                const itemsPerCol = Math.ceil(result.complementary_prizes.length / 3);
+                                return (
+                                  <View key={`col-${colIdx}`} className="flex-1">
+                                    {Array.from({ length: itemsPerCol }).map((_, rowIdx) => {
+                                      const idx = rowIdx + colIdx * itemsPerCol;
+                                      const prize = result.complementary_prizes[idx];
+                                      if (!prize) return null;
+                                      return (
+                                        <Text
+                                          key={`cp-${idx}`}
+                                          className="py-1 text-center text-[14px] font-mono font-bold text-gray-900"
+                                        >
+                                          {prize}
+                                        </Text>
+                                      );
+                                    })}
+                                  </View>
+                                );
+                              })}
                             </View>
                           </View>
                         )}
