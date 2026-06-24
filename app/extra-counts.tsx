@@ -23,13 +23,14 @@ import {
   Copy,
   History,
   MoveLeft,
+  RotateCcw,
   Search,
   Send,
   Ticket,
   Trash2,
   X,
 } from "lucide-react-native";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -327,6 +328,12 @@ export default function ExtraCountsScreen() {
     Set<number>
   >(new Set());
 
+  // Snapshot: the max ID of the first loaded result. Clear/transfer are
+  // bounded to id <= snapshotMaxId so new bookings that arrive after the
+  // page loads are never accidentally swept by an action.
+  const [snapshotMaxId, setSnapshotMaxId] = useState<number | null>(null);
+  const hasSnapshotRef = useRef(false);
+
   const { data: vendors = [] } = useQuery<Vendor[]>({
     queryKey: ["monitoring-vendors"],
     queryFn: () =>
@@ -368,6 +375,12 @@ export default function ExtraCountsScreen() {
       prev.includes(st) ? prev.filter((x) => x !== st) : [...prev, st]
     );
   };
+
+  // Reset snapshot whenever the active filters change.
+  useEffect(() => {
+    hasSnapshotRef.current = false;
+    setSnapshotMaxId(null);
+  }, [vendorId, drawId, typesKey, subTypesKey]);
 
   const PAGE_SIZE = 50;
 
@@ -446,6 +459,21 @@ export default function ExtraCountsScreen() {
   const totalCount = data?.pages[0]?.count ?? 0;
   const totalExtraFromServer = data?.pages[0]?.total_extra ?? 0;
 
+  // Capture the max ID from the first result once per load/filter cycle.
+  // Skip while fetching (avoids capturing stale data during refetch or
+  // while React Query still holds old pages during a filter change).
+  useEffect(() => {
+    const firstId = data?.pages?.[0]?.results?.[0]?.id;
+    if (!isFetching && firstId !== undefined && !hasSnapshotRef.current) {
+      setSnapshotMaxId(firstId);
+      hasSnapshotRef.current = true;
+    } else if (isFetching && !isFetchingNextPage) {
+      // A full refetch (not "load more") — clear so we re-capture fresh data.
+      hasSnapshotRef.current = false;
+      setSnapshotMaxId(null);
+    }
+  }, [data, isFetching, isFetchingNextPage]);
+
   const vendorName = vendors.find((v) => v.id === vendorId)?.name;
   const drawName = drawNameFromParams || (drawId ? `Draw #${drawId}` : "");
   const hasFilters =
@@ -470,6 +498,12 @@ export default function ExtraCountsScreen() {
 
   const queryClient = useQueryClient();
   const { copyAll, clear, transferAll } = useMonitoringActions();
+
+  const handleRefresh = () => {
+    hasSnapshotRef.current = false;
+    setSnapshotMaxId(null);
+    refetch();
+  };
 
   const handleCopyAll = async () => {
     try {
@@ -524,6 +558,7 @@ export default function ExtraCountsScreen() {
             if (drawId) body.draw_id = drawId;
             if (types.length) body.type = types;
             if (subTypes.length) body.sub_type = subTypes;
+            if (snapshotMaxId !== null) body.snapshot_max_id = snapshotMaxId;
             clear.mutate(body, {
               onSuccess: (res) => {
                 queryClient.invalidateQueries({ queryKey: ["extra-counts"] });
@@ -609,6 +644,7 @@ export default function ExtraCountsScreen() {
     const transferBody: any = { draw_id: drawId, destination_vendor_ids: vendorIds };
     if (types.length) transferBody.type = types;
     if (subTypes.length) transferBody.sub_type = subTypes;
+    if (snapshotMaxId !== null) transferBody.snapshot_max_id = snapshotMaxId;
     transferAll.mutate(
       transferBody,
       {
@@ -834,6 +870,27 @@ export default function ExtraCountsScreen() {
           busy={clear.isPending}
           tone="red"
         />
+      </View>
+
+      {/* Reload / snapshot bar */}
+      <View className="bg-white px-4 py-2 border-b border-gray-100 flex-row items-center justify-between">
+        <Text className="text-xs text-gray-400">
+          {snapshotMaxId !== null
+            ? `Showing data up to record #${snapshotMaxId}`
+            : isFetching
+            ? "Loading..."
+            : "No snapshot"}
+        </Text>
+        <TouchableOpacity
+          onPress={handleRefresh}
+          disabled={isFetching}
+          activeOpacity={0.7}
+          className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50"
+          style={{ opacity: isFetching ? 0.5 : 1 }}
+        >
+          <RotateCcw size={13} color="#4338CA" />
+          <Text className="text-xs font-semibold text-indigo-700">Reload</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Body */}
