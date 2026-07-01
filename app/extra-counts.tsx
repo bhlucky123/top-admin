@@ -512,6 +512,7 @@ export default function ExtraCountsScreen() {
       if (drawId) params.draw_session__draw__id = drawId;
       if (types.length) params.type__in = types.join(",");
       if (subTypes.length) params.sub_type__in = subTypes.join(",");
+      if (snapshotMaxId !== null) params.snapshot_max_id = snapshotMaxId;
       const lines = await copyAll.mutateAsync(params);
       if (!lines.length) {
         Alert.alert("Nothing to copy", "No extra-count entries match the current filters.");
