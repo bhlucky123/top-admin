@@ -71,6 +71,10 @@ export default function RootLayout() {
             options={{ headerShown: false }}
           />
           <Stack.Screen
+            name="monitoring-history"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
             name="booking-details"
             options={{ headerShown: false }}
           />
