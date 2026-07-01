@@ -201,8 +201,14 @@ export default function MonitoringHistoryScreen() {
 
   const [tab, setTab] = useState<Tab>("entries");
 
+  type StatusFilter = "all" | "active" | "cleared" | "transferred";
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+
   // ── Entries (all ExtraCount including done) ──────────────────────────────
-  const entriesKey = useMemo(() => ["monitoring-history-entries", drawId], [drawId]);
+  const entriesKey = useMemo(
+    () => ["monitoring-history-entries", drawId, statusFilter],
+    [drawId, statusFilter]
+  );
 
   const {
     data: entriesData,
@@ -219,6 +225,9 @@ export default function MonitoringHistoryScreen() {
     queryFn: ({ pageParam = 0 }) => {
       const q: Record<string, any> = { limit: PAGE_SIZE, offset: pageParam };
       if (drawId) q["draw_session__draw__id"] = drawId;
+      if (statusFilter === "active") q["is_done"] = "false";
+      else if (statusFilter === "cleared") q["done_action"] = "cleared";
+      else if (statusFilter === "transferred") q["done_action"] = "transferred";
       return api
         .get("/draw-monitoring/extra-count/history/", { params: q })
         .then((r) => {
@@ -406,6 +415,37 @@ export default function MonitoringHistoryScreen() {
           );
         })}
       </View>
+
+      {/* Entries status filter */}
+      {isEntries && (
+        <View style={styles.filterBar}>
+          {(["all", "active", "cleared", "transferred"] as StatusFilter[]).map((f) => {
+            const active = statusFilter === f;
+            const cfg = f === "all"
+              ? { label: "All",         activeBg: "#f1f5f9", activeBorder: "#cbd5e1", activeText: "#1e293b" }
+              : f === "active"
+              ? { label: "Active",      activeBg: "#dcfce7", activeBorder: "#86efac", activeText: "#15803d" }
+              : f === "cleared"
+              ? { label: "Cleared",     activeBg: "#fef2f2", activeBorder: "#fca5a5", activeText: "#b91c1c" }
+              : { label: "Transferred", activeBg: "#eef2ff", activeBorder: "#a5b4fc", activeText: "#3730a3" };
+            return (
+              <TouchableOpacity
+                key={f}
+                onPress={() => setStatusFilter(f)}
+                style={[
+                  styles.filterChip,
+                  active && { backgroundColor: cfg.activeBg, borderColor: cfg.activeBorder },
+                ]}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.filterChipText, active && { color: cfg.activeText, fontWeight: "700" }]}>
+                  {cfg.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
 
       {/* Stats bar */}
       {isEntries && !loadingEntries && entries.length > 0 && (
@@ -655,6 +695,28 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 13,
+    fontWeight: "600",
+    color: "#94a3b8",
+  },
+  filterBar: {
+    backgroundColor: "#fff",
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    backgroundColor: "#f8fafc",
+  },
+  filterChipText: {
+    fontSize: 12,
     fontWeight: "600",
     color: "#94a3b8",
   },
