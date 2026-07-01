@@ -47,6 +47,7 @@ type ExtraCountEntry = {
   sub_type: MonitoringSubType;
   is_done: boolean;
   done_action: "cleared" | "transferred" | null;
+  transferred_count: number;
 };
 
 type RecallEntry = {
@@ -115,6 +116,9 @@ function EntryRow({ item, even }: { item: ExtraCountEntry; even: boolean }) {
       <Text style={styles.numberText}>{item.number}</Text>
       <View style={styles.rightCol}>
         <Text style={styles.countText}>{item.count}</Text>
+        {!item.is_done && item.transferred_count > 0 && (
+          <Text style={styles.transferredHint}>+{item.transferred_count} txfr</Text>
+        )}
         <View style={[styles.badge, { backgroundColor: status.bg, borderColor: status.border }]}>
           <Text style={[styles.badgeText, { color: status.text }]}>{status.label}</Text>
         </View>
@@ -811,6 +815,11 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 10,
     color: "#94a3b8",
+  },
+  transferredHint: {
+    fontSize: 9,
+    color: "#6366f1",
+    fontWeight: "600",
   },
   badge: {
     borderWidth: 1,
