@@ -82,28 +82,32 @@ function fmtTime(iso?: string) {
 
 const PAGE_SIZE = 50;
 
-const STATUS_CONFIG = {
-  active:      { label: "Active",      bg: "#dcfce7", border: "#86efac", text: "#15803d", dot: "#16a34a" },
-  cleared:     { label: "Cleared",     bg: "#fef2f2", border: "#fca5a5", text: "#b91c1c", dot: "#ef4444" },
-  transferred: { label: "Transferred", bg: "#eef2ff", border: "#a5b4fc", text: "#3730a3", dot: "#6366f1" },
-  done:        { label: "Done",        bg: "#f1f5f9", border: "#cbd5e1", text: "#475569", dot: "#94a3b8" },
+const STATUS_BADGE = {
+  active: { label: "Active", bg: "#dcfce7", border: "#86efac", text: "#15803d", dot: "#16a34a" },
+  done:   { label: "Done",   bg: "#f1f5f9", border: "#cbd5e1", text: "#475569", dot: "#94a3b8" },
 };
 
-function getEntryStatus(item: ExtraCountEntry) {
-  if (!item.is_done) return STATUS_CONFIG.active;
-  if (item.done_action === "cleared") return STATUS_CONFIG.cleared;
-  if (item.done_action === "transferred") return STATUS_CONFIG.transferred;
-  return STATUS_CONFIG.done;
-}
-
 function EntryRow({ item, even }: { item: ExtraCountEntry; even: boolean }) {
-  const status = getEntryStatus(item);
+  const badge = item.is_done ? STATUS_BADGE.done : STATUS_BADGE.active;
+
+  // How much was transferred out of this entry (across all batches).
+  const txfr = item.transferred_count;
+  // How much was cleared: only meaningful when the final action was a clear.
+  // The `count` field is not modified by the clear action, so it holds
+  // exactly the amount that was cleared.
+  const clr = item.is_done && item.done_action === "cleared" ? item.count : 0;
+  // Remaining active units (only when not done).
+  const rem = !item.is_done ? item.count : 0;
+  // Show the plain count when there is no breakdown to display (fresh entry,
+  // or a legacy done record with no action tracked).
+  const showPlainCount = txfr === 0 && clr === 0;
+
   return (
     <View style={[styles.row, { backgroundColor: even ? "#ffffff" : "#f8fafc" }]}>
       <View style={styles.statusCol}>
         {item.is_done
-          ? <CheckCircle2 size={16} color={status.dot} />
-          : <Circle size={16} color={status.dot} />}
+          ? <CheckCircle2 size={16} color={badge.dot} />
+          : <Circle size={16} color={badge.dot} />}
       </View>
       <View style={styles.mainCol}>
         <Text style={styles.vendorText} numberOfLines={1}>
@@ -115,13 +119,30 @@ function EntryRow({ item, even }: { item: ExtraCountEntry; even: boolean }) {
       </View>
       <Text style={styles.numberText}>{item.number}</Text>
       <View style={styles.rightCol}>
-        <Text style={styles.countText}>{item.count}</Text>
-        {!item.is_done && item.transferred_count > 0 && (
-          <Text style={styles.transferredHint}>+{item.transferred_count} txfr</Text>
-        )}
-        <View style={[styles.badge, { backgroundColor: status.bg, borderColor: status.border }]}>
-          <Text style={[styles.badgeText, { color: status.text }]}>{status.label}</Text>
+        {/* Active / Done badge — always first */}
+        <View style={[styles.badge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
+          <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
         </View>
+
+        {/* Plain count — fresh active entries or legacy done with no action */}
+        {showPlainCount && (
+          <Text style={styles.countText}>{item.count}</Text>
+        )}
+
+        {/* Transferred count — shown whenever > 0, regardless of final status */}
+        {txfr > 0 && (
+          <Text style={styles.txfrText}>{txfr} transferred</Text>
+        )}
+
+        {/* Cleared count — only when the entry was finalised by a clear */}
+        {clr > 0 && (
+          <Text style={styles.clrText}>{clr} cleared</Text>
+        )}
+
+        {/* Remaining — active entries that had a partial transfer */}
+        {rem > 0 && txfr > 0 && (
+          <Text style={styles.remText}>{rem} remaining</Text>
+        )}
       </View>
     </View>
   );
@@ -816,10 +837,23 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: "#94a3b8",
   },
-  transferredHint: {
-    fontSize: 9,
-    color: "#6366f1",
+  txfrText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#4338ca",
+    textAlign: "right",
+  },
+  clrText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#dc2626",
+    textAlign: "right",
+  },
+  remText: {
+    fontSize: 10,
     fontWeight: "600",
+    color: "#059669",
+    textAlign: "right",
   },
   badge: {
     borderWidth: 1,
