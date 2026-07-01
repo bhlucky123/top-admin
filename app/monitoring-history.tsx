@@ -46,6 +46,7 @@ type ExtraCountEntry = {
   type: MonitoringType;
   sub_type: MonitoringSubType;
   is_done: boolean;
+  done_action: "cleared" | "transferred" | null;
 };
 
 type RecallEntry = {
@@ -81,12 +82,21 @@ function fmtTime(iso?: string) {
 const PAGE_SIZE = 50;
 
 const STATUS_CONFIG = {
-  active: { label: "Active", bg: "#dcfce7", border: "#86efac", text: "#15803d", dot: "#16a34a" },
-  done:   { label: "Done",   bg: "#f1f5f9", border: "#cbd5e1", text: "#475569", dot: "#94a3b8" },
+  active:      { label: "Active",      bg: "#dcfce7", border: "#86efac", text: "#15803d", dot: "#16a34a" },
+  cleared:     { label: "Cleared",     bg: "#fef2f2", border: "#fca5a5", text: "#b91c1c", dot: "#ef4444" },
+  transferred: { label: "Transferred", bg: "#eef2ff", border: "#a5b4fc", text: "#3730a3", dot: "#6366f1" },
+  done:        { label: "Done",        bg: "#f1f5f9", border: "#cbd5e1", text: "#475569", dot: "#94a3b8" },
 };
 
+function getEntryStatus(item: ExtraCountEntry) {
+  if (!item.is_done) return STATUS_CONFIG.active;
+  if (item.done_action === "cleared") return STATUS_CONFIG.cleared;
+  if (item.done_action === "transferred") return STATUS_CONFIG.transferred;
+  return STATUS_CONFIG.done;
+}
+
 function EntryRow({ item, even }: { item: ExtraCountEntry; even: boolean }) {
-  const status = item.is_done ? STATUS_CONFIG.done : STATUS_CONFIG.active;
+  const status = getEntryStatus(item);
   return (
     <View style={[styles.row, { backgroundColor: even ? "#ffffff" : "#f8fafc" }]}>
       <View style={styles.statusCol}>
