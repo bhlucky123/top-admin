@@ -18,6 +18,7 @@ import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-quer
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   Activity,
+  ArrowLeftRight,
   Building2,
   ChevronDown,
   Copy,
@@ -684,20 +685,36 @@ export default function ExtraCountsScreen() {
             <MoveLeft size={22} color="#4B5563" />
           </TouchableOpacity>
           <Text className="text-xl font-bold text-gray-800">Extra Counts</Text>
-          <TouchableOpacity
-            onPress={() =>
-              router.push({
-                pathname: "/transfer-log",
-                params: drawId
-                  ? { drawId: String(drawId), drawName }
-                  : {},
-              })
-            }
-            className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
-            activeOpacity={0.7}
-          >
-            <History size={20} color="#4F46E5" />
-          </TouchableOpacity>
+          <View className="flex-row gap-2">
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: "/monitoring-history",
+                  params: drawId
+                    ? { drawId: String(drawId), drawName }
+                    : {},
+                })
+              }
+              className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
+              activeOpacity={0.7}
+            >
+              <History size={20} color="#059669" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: "/transfer-log",
+                  params: drawId
+                    ? { drawId: String(drawId), drawName }
+                    : {},
+                })
+              }
+              className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
+              activeOpacity={0.7}
+            >
+              <ArrowLeftRight size={20} color="#4F46E5" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
