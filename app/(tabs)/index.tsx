@@ -6,6 +6,7 @@ import {
   ChevronRight,
   RefreshCw,
   Ticket,
+  Trash2,
 } from "lucide-react-native";
 import {
   ActivityIndicator,
@@ -138,6 +139,24 @@ export default function DashboardScreen() {
               </Text>
             </TouchableOpacity>
           ))}
+
+          {/* Deletion Log Card */}
+          <TouchableOpacity
+            onPress={() => router.push("/booking-deletions")}
+            className="bg-white rounded-2xl p-5 mb-4 shadow-sm border border-gray-100"
+            style={{ width: "48%" }}
+            activeOpacity={0.7}
+          >
+            <View className="w-10 h-10 rounded-xl items-center justify-center mb-3 bg-red-50">
+              <Trash2 size={20} color="#DC2626" />
+            </View>
+            <Text className="text-gray-800 text-sm font-bold mb-1">
+              Deleted Bookings
+            </Text>
+            <Text className="text-gray-500 text-xs font-medium">
+              Who deleted what
+            </Text>
+          </TouchableOpacity>
 
           {/* Refresh Card */}
           <TouchableOpacity

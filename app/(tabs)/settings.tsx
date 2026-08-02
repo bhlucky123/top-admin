@@ -7,8 +7,10 @@ import {
   Info,
   LogOut,
   Shield,
+  Trash2,
   User,
 } from "lucide-react-native";
+import { useRouter } from "expo-router";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import {
@@ -71,6 +73,7 @@ function SettingItem({
 
 export default function SettingsScreen() {
   const { user, logout } = useAuthStore();
+  const router = useRouter();
 
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to sign out?", [
@@ -135,6 +138,21 @@ export default function SettingsScreen() {
             iconBg="#ECFDF5"
             label="Role"
             value="Super Admin (Full Access)"
+          />
+        </View>
+
+        {/* Audit */}
+        <Text className="text-gray-400 text-xs font-semibold uppercase tracking-wider ml-2 mb-2">
+          Audit
+        </Text>
+        <View className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm mb-5">
+          <SettingItem
+            icon={Trash2}
+            iconColor="#DC2626"
+            iconBg="#FEF2F2"
+            label="Deleted Bookings"
+            value="Who deleted which booking, and when"
+            onPress={() => router.push("/booking-deletions")}
           />
         </View>
 
