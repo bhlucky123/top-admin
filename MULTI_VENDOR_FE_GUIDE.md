@@ -367,6 +367,9 @@ If you have a dropdown to filter by `config_level`:
 | Field | Type | Description |
 |---|---|---|
 | `vendor` | `integer\|null` | Vendor ID — required when `config_level=vendor`, null otherwise |
+| `window_start_time` | `string ("HH:MM:SS")\|null` | Recurring daily window start. `null` means the window starts at 00:00. |
+| `window_end_time` | `string ("HH:MM:SS")\|null` | Recurring daily window end. `null` means the window extends to end of day. Must not be after the draw's `cut_off_time`. Both `window_start_time` and `window_end_time` null (the default) means the limit applies all day, matching the old behavior. |
+| `is_active_now` | `boolean` (read-only) | Whether the current time falls inside this row's resolved window — use it to show an "active now" indicator. |
 
 #### Creating Vendor-Level Limits (super admin or vendor admin)
 ```javascript
@@ -382,6 +385,23 @@ await api.post('/draw/limit-number/', {
   number_type: 'triple_digit'
 });
 ```
+
+### 8.2 Time-Windowed Limits
+
+The same number or range can now carry several non-overlapping daily time windows, each with its own `count`, instead of one static cap for the whole draw. For example, for a draw with `cut_off_time` of `13:00`:
+
+```javascript
+// 100 available from 12:00–12:30, then a fresh pool of 50 from 12:30–13:00
+await api.post('/draw/limit-number/', { draw: 1, config_level: 'global', number: '123', count: 100, limit_type: 'single_number', number_type: 'triple_digit', window_start_time: '12:00:00', window_end_time: '12:30:00' });
+await api.post('/draw/limit-number/', { draw: 1, config_level: 'global', number: '123', count: 50, limit_type: 'single_number', number_type: 'triple_digit', window_start_time: '12:30:00', window_end_time: '13:00:00' });
+```
+
+Rules to enforce client-side (the API also validates these and returns field-level 400s):
+- `window_end_time` must be strictly after `window_start_time` when both are set.
+- `window_end_time` cannot be after the draw's own `cut_off_time`. A `null` end is exempt — it deliberately means "runs to end of day" and is only ever reachable before cut-off anyway, since bookings are blocked past cut-off elsewhere.
+- Windows for the same number/range at the same `config_level` must not overlap (half-open `[start, end)` — a window ending at 12:30 and the next starting at 12:30 are adjacent, not overlapping).
+- Already-booked counts reset per window: a number's usage against its 12:00–12:30 cap is independent of its usage against its 12:30–13:00 cap.
+- Leaving both fields unset/`null` keeps the legacy "applies all day" behavior — existing configs don't need to change.
 
 ---
 
