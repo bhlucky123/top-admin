@@ -5,7 +5,7 @@ import { AntDesign, Feather } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { Activity, Clock, Palette, Plus, Search, Ticket } from "lucide-react-native";
+import { Activity, Clock, Palette, Plus, Search, Ticket, Trash2 } from "lucide-react-native";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -30,6 +30,31 @@ const getContrastYIQ = (hexcolor: string) => {
   return yiq >= 128 ? "#000000" : "#ffffff";
 };
 
+// Deletion time is stored on the draw as a plain minute count (null = no limit).
+export const formatDeleteTimeLimit = (minutes?: number | null) => {
+  if (!minutes || Number(minutes) <= 0) return "No limit";
+  const total = Number(minutes);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h && m) return `${h} hr ${m} min`;
+  if (h) return `${h} hr`;
+  return `${m} min`;
+};
+
+// The custom picker is a time picker whose hours/minutes are read as a duration.
+const minutesToDurationDate = (minutes?: number | null) => {
+  const total = minutes && Number(minutes) > 0 ? Number(minutes) : 0;
+  return new Date(1970, 0, 1, Math.floor(total / 60), total % 60, 0, 0);
+};
+
+const DELETE_TIME_PRESETS: { label: string; value: number | null }[] = [
+  { label: "No limit", value: null },
+  { label: "15 min", value: 15 },
+  { label: "30 min", value: 30 },
+  { label: "1 hr", value: 60 },
+  { label: "2 hr", value: 120 },
+];
+
 // --- Draw Form ---
 const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => void }) => {
   const isEdit = !!initialData;
@@ -42,6 +67,10 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
           cut_off_time: new Date(`1970-01-01T${initialData.cut_off_time}`),
           draw_time: new Date(`1970-01-01T${initialData.draw_time}`),
           type: initialData.type || "default",
+          delete_time_limit:
+            initialData.delete_time_limit != null && Number(initialData.delete_time_limit) > 0
+              ? Number(initialData.delete_time_limit)
+              : null,
         }
       : {
           name: "",
@@ -53,9 +82,11 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
           non_single_digit_price: "",
           single_digit_number_price: "",
           type: "default" as DrawType,
+          delete_time_limit: null as number | null,
         }
   );
   const [showDatePicker, setShowDatePicker] = useState<null | string>(null);
+  const [showDeleteLimitPicker, setShowDeleteLimitPicker] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -154,6 +185,11 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
           ? Number(form.single_digit_number_price)
           : price,
       type: form.type,
+      // Minutes a booking stays deletable after it is created. null = no limit.
+      delete_time_limit:
+        form.delete_time_limit && Number(form.delete_time_limit) > 0
+          ? Number(form.delete_time_limit)
+          : null,
     };
 
     try {
@@ -419,6 +455,61 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
           )}
         </View>
 
+        {/* Booking Deletion Time */}
+        <View style={{ marginBottom: 20 }}>
+          <Text style={styles.formLabel}>Booking Deletion Time</Text>
+          <Text style={{ color: "#64748B", fontSize: 12, marginBottom: 10, marginTop: -6 }}>
+            How long a booking stays deletable after it is created. Once this time
+            passes, only the main vendor admin with delete permission can delete it.
+          </Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {DELETE_TIME_PRESETS.map((opt) => {
+              const selected = (form.delete_time_limit ?? null) === opt.value;
+              return (
+                <TouchableOpacity
+                  key={opt.label}
+                  onPress={() =>
+                    setForm((prev: typeof form) => ({ ...prev, delete_time_limit: opt.value }))
+                  }
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 14,
+                    borderRadius: 10,
+                    borderWidth: 2,
+                    borderColor: selected ? "#6366F1" : "#e2e8f0",
+                    backgroundColor: selected ? "#EEF2FF" : "#fff",
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={{
+                      fontWeight: "600",
+                      fontSize: 13,
+                      color: selected ? "#4338CA" : "#64748B",
+                    }}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <View style={[styles.timeRow, { marginBottom: 0 }]}>
+            <Text style={styles.timeLabel}>Custom</Text>
+            <TouchableOpacity
+              style={styles.timeBtn}
+              activeOpacity={0.85}
+              onPress={() => setShowDeleteLimitPicker(true)}
+            >
+              <Feather name="clock" size={18} color="#6366f1" style={{ marginRight: 6 }} />
+              <Text style={styles.timeBtnText}>
+                {formatDeleteTimeLimit(form.delete_time_limit)}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <View style={{ marginBottom: 32 }}>
           <TouchableOpacity
             onPress={handleSubmit}
@@ -443,6 +534,25 @@ const DrawForm = ({ initialData, onClose }: { initialData?: any; onClose: () => 
             onChange={(event, date) => {
               if (date) setForm((prev: typeof form) => ({ ...prev, [showDatePicker]: date }));
               setShowDatePicker(null);
+            }}
+          />
+        )}
+
+        {showDeleteLimitPicker && (
+          <DateTimePicker
+            mode="time"
+            is24Hour={true}
+            value={minutesToDurationDate(form.delete_time_limit)}
+            display={Platform.OS === "android" ? "default" : "spinner"}
+            onChange={(event, date) => {
+              setShowDeleteLimitPicker(false);
+              if (event.type !== "set" || !date) return;
+              // Hours/minutes on the picker are read as a duration, not a clock time.
+              const minutes = date.getHours() * 60 + date.getMinutes();
+              setForm((prev: typeof form) => ({
+                ...prev,
+                delete_time_limit: minutes > 0 ? minutes : null,
+              }));
             }}
           />
         )}
@@ -532,6 +642,14 @@ function DrawCard({
               {item.color_theme}
             </Text>
           </View>
+          {!!item.delete_time_limit && (
+            <View className="flex-row items-center">
+              <Trash2 size={13} color="#6B7280" />
+              <Text className="text-gray-500 text-xs ml-1">
+                Delete within: {formatDeleteTimeLimit(item.delete_time_limit)}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View className="flex-row mt-3 items-center justify-between">
