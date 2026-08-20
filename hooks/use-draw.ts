@@ -14,6 +14,8 @@ export type Draw = {
   non_single_digit_price: number;
   single_digit_number_price: number;
   type?: DrawType;
+  /** Minutes a booking stays deletable after creation. null/0 = no limit. */
+  delete_time_limit?: number | null;
 };
 
 const useDraw = () => {
