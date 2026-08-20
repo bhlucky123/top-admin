@@ -1,4 +1,5 @@
 import api from "@/utils/axios";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { MoveLeft, Shield, Ticket } from "lucide-react-native";
@@ -35,6 +36,30 @@ type GlobalLimitCount = {
   config_level: string;
   dealer: number | null;
   vendor: number | null;
+  window_start_time?: string | null;
+  window_end_time?: string | null;
+  is_active_now?: boolean;
+};
+
+const formatTime = (date: Date) => {
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+};
+
+const formatWindowTime = (time: string) => {
+  const [h, m] = time.split(":").map(Number);
+  return new Date(1970, 0, 1, h, m).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
+const windowLabel = (item: { window_start_time?: string | null; window_end_time?: string | null }) => {
+  if (!item.window_start_time && !item.window_end_time) return "All day";
+  const start = item.window_start_time ? formatWindowTime(item.window_start_time) : "00:00";
+  const end = item.window_end_time ? formatWindowTime(item.window_end_time) : "end of day";
+  return `${start} – ${end}`;
 };
 
 const DRAW_TYPE_NUMBER_TYPES: Record<DrawType, { value: NumberType; label: string }[]> = {
@@ -123,9 +148,10 @@ const LimitRow = memo(
 
     return (
       <View
-        className="flex-row items-center border-b border-gray-100 bg-white px-3 py-3"
+        className="border-b border-gray-100 bg-white px-3 py-3"
         style={{ minHeight: 52 }}
       >
+      <View className="flex-row items-center">
         <View style={{ width: "30%" }}>
           <Text className="text-base font-bold text-gray-900">{displayNumber}</Text>
         </View>
@@ -205,6 +231,15 @@ const LimitRow = memo(
           )}
         </View>
       </View>
+      <View className="flex-row items-center mt-1">
+        <View
+          className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+            item.is_active_now ? "bg-green-500" : "bg-gray-300"
+          }`}
+        />
+        <Text className="text-xs text-gray-500">{windowLabel(item)}</Text>
+      </View>
+      </View>
     );
   }
 );
@@ -225,10 +260,13 @@ export default function GlobalLimitCountScreen() {
   const [newRangeStart, setNewRangeStart] = useState("");
   const [newRangeEnd, setNewRangeEnd] = useState("");
   const [newCount, setNewCount] = useState("");
+  const [windowStart, setWindowStart] = useState<Date | null>(null);
+  const [windowEnd, setWindowEnd] = useState<Date | null>(null);
+  const [showTimePicker, setShowTimePicker] = useState<null | "start" | "end">(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [errorFields, setErrorFields] = useState<
-    ("number" | "rangeStart" | "rangeEnd" | "count")[]
+    ("number" | "rangeStart" | "rangeEnd" | "count" | "window")[]
   >([]);
   const [filterNumberType, setFilterNumberType] = useState<NumberType | "all">("all");
 
@@ -269,12 +307,24 @@ export default function GlobalLimitCountScreen() {
       setNewRangeStart("");
       setNewRangeEnd("");
       setNewCount("");
+      setWindowStart(null);
+      setWindowEnd(null);
       setIsSubmitting(false);
       clearValidation();
       ToastAndroid.show("Limit added.", ToastAndroid.SHORT);
     },
     onError: (err: any) => {
       setIsSubmitting(false);
+      const windowErr =
+        err?.message?.window_end_time?.[0] ||
+        err?.response?.data?.window_end_time?.[0] ||
+        err?.message?.window_start_time?.[0] ||
+        err?.response?.data?.window_start_time?.[0];
+      if (windowErr) {
+        setErrorFields(["window"]);
+        setValidationError(windowErr);
+        return;
+      }
       const errorMsg =
         err?.message?.__all__?.[0] ||
         err?.response?.data?.non_field_errors?.[0] ||
@@ -383,6 +433,16 @@ export default function GlobalLimitCountScreen() {
       setErrorFields(["count"]);
       return;
     }
+    if (windowStart && windowEnd && formatTime(windowEnd) <= formatTime(windowStart)) {
+      setValidationError("Window end time must be after window start time.");
+      setErrorFields(["window"]);
+      return;
+    }
+
+    const windowFields = {
+      window_start_time: windowStart ? formatTime(windowStart) : null,
+      window_end_time: windowEnd ? formatTime(windowEnd) : null,
+    };
 
     if (limitType === "single_number") {
       const trimmed = newNumber.trim();
@@ -400,6 +460,7 @@ export default function GlobalLimitCountScreen() {
         limit_type: "single_number",
         range_start: null,
         range_end: null,
+        ...windowFields,
       });
     } else {
       const trimStart = newRangeStart.trim();
@@ -428,6 +489,7 @@ export default function GlobalLimitCountScreen() {
         limit_type: "range",
         range_start: trimStart,
         range_end: trimEnd,
+        ...windowFields,
       });
     }
   };
@@ -574,6 +636,64 @@ export default function GlobalLimitCountScreen() {
             />
           </View>
 
+          {/* Time window (optional) */}
+          <View className="mb-3">
+            <Text className="text-xs font-bold text-gray-500 uppercase mb-2">
+              Time Window (optional)
+            </Text>
+            <View className="flex-row items-center gap-2">
+              <TouchableOpacity
+                className="flex-1 flex-row items-center justify-center bg-white rounded-lg px-3 py-3"
+                style={{
+                  borderWidth: 1,
+                  borderColor: borderColor(errorFields.includes("window")),
+                }}
+                onPress={() => setShowTimePicker("start")}
+                disabled={isSubmitting}
+                activeOpacity={0.7}
+              >
+                <Text className="text-sm text-gray-700">
+                  {windowStart
+                    ? windowStart.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })
+                    : "Start"}
+                </Text>
+              </TouchableOpacity>
+              <Text className="text-gray-400 text-xs">to</Text>
+              <TouchableOpacity
+                className="flex-1 flex-row items-center justify-center bg-white rounded-lg px-3 py-3"
+                style={{
+                  borderWidth: 1,
+                  borderColor: borderColor(errorFields.includes("window")),
+                }}
+                onPress={() => setShowTimePicker("end")}
+                disabled={isSubmitting}
+                activeOpacity={0.7}
+              >
+                <Text className="text-sm text-gray-700">
+                  {windowEnd
+                    ? windowEnd.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })
+                    : "End"}
+                </Text>
+              </TouchableOpacity>
+              {(windowStart || windowEnd) && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setWindowStart(null);
+                    setWindowEnd(null);
+                    clearValidation();
+                  }}
+                  disabled={isSubmitting}
+                  activeOpacity={0.7}
+                >
+                  <Text className="text-red-500 text-xs font-bold">Clear</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text className="text-xs text-gray-400 mt-1">
+              Leave blank for a limit that applies all day.
+            </Text>
+          </View>
+
           {validationError && (
             <Text className="text-red-500 text-sm mb-2">{validationError}</Text>
           )}
@@ -642,6 +762,21 @@ export default function GlobalLimitCountScreen() {
           </View>
         </View>
       </View>
+
+      {showTimePicker && (
+        <DateTimePicker
+          mode="time"
+          value={(showTimePicker === "start" ? windowStart : windowEnd) || new Date()}
+          display={Platform.OS === "android" ? "default" : "spinner"}
+          onChange={(event, date) => {
+            if (date) {
+              if (showTimePicker === "start") setWindowStart(date);
+              else setWindowEnd(date);
+            }
+            setShowTimePicker(null);
+          }}
+        />
+      )}
     </View>
   );
 
