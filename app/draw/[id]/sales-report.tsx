@@ -298,7 +298,10 @@ export default function DrawSalesReportScreen() {
                 // The backend rejects with a reason (cut-off passed, deletion
                 // time window expired, transfer booking) — show it verbatim.
                 const msg =
-                  err?.response?.data?.message || "Could not delete booking.";
+                  err?.message?.message ||
+                  err?.message?.detail ||
+                  err?.response?.data?.message ||
+                  "Could not delete booking.";
                 Alert.alert("Delete Failed", msg);
               }
             },

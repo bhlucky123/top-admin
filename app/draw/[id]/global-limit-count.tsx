@@ -55,6 +55,14 @@ const formatWindowTime = (time: string) => {
   });
 };
 
+const parseWindowTime = (time?: string | null) => {
+  if (!time) return null;
+  const [h, m] = time.split(":").map(Number);
+  const d = new Date();
+  d.setHours(h || 0, m || 0, 0, 0);
+  return d;
+};
+
 const windowLabel = (item: { window_start_time?: string | null; window_end_time?: string | null }) => {
   if (!item.window_start_time && !item.window_end_time) return "All day";
   const start = item.window_start_time ? formatWindowTime(item.window_start_time) : "00:00";
@@ -129,16 +137,13 @@ const PillTabs = ({
 const LimitRow = memo(
   ({
     item,
-    updateMutation,
+    onEditPress,
     onDeletePress,
   }: {
     item: GlobalLimitCount;
-    updateMutation: any;
+    onEditPress: (item: GlobalLimitCount) => void;
     onDeletePress: (item: GlobalLimitCount) => void;
   }) => {
-    const [editCount, setEditCount] = useState(item.count.toString());
-    const [isEditing, setIsEditing] = useState(false);
-
     const displayNumber =
       item.limit_type === "range"
         ? `${item.range_start}-${item.range_end}`
@@ -159,76 +164,27 @@ const LimitRow = memo(
           <Text className="text-sm font-semibold text-gray-500">{typeLabel}</Text>
         </View>
         <View style={{ width: "20%" }}>
-          {isEditing ? (
-            <TextInput
-              className="text-center text-sm font-bold bg-blue-50 rounded-lg px-2 py-2 border border-blue-200"
-              style={{ color: "#1D4ED8" }}
-              value={editCount}
-              onChangeText={setEditCount}
-              keyboardType="number-pad"
-              autoFocus
-              returnKeyType="done"
-            />
-          ) : (
-            <Text className="text-base font-bold text-green-600 text-center">
-              {item.count}
-            </Text>
-          )}
+          <Text className="text-base font-bold text-green-600 text-center">
+            {item.count}
+          </Text>
         </View>
         <View style={{ width: "35%" }} className="flex-row justify-end gap-2">
-          {isEditing ? (
-            <>
-              <TouchableOpacity
-                className="bg-green-500 px-3 py-2 rounded-lg"
-                onPress={() => {
-                  const countNum = parseInt(editCount, 10);
-                  if (isNaN(countNum) || countNum < 0) {
-                    Dialog.show({
-                      type: ALERT_TYPE.WARNING,
-                      title: "Invalid",
-                      textBody: "Please enter a valid count.",
-                      button: "OK",
-                    });
-                    return;
-                  }
-                  updateMutation.mutate({ id: item.id, count: countNum });
-                  setIsEditing(false);
-                }}
-                activeOpacity={0.7}
-              >
-                <Text className="text-white font-bold text-sm">OK</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="bg-gray-200 px-3 py-2 rounded-lg"
-                onPress={() => {
-                  setEditCount(item.count.toString());
-                  setIsEditing(false);
-                }}
-                activeOpacity={0.7}
-              >
-                <Text className="text-gray-500 font-bold text-sm">X</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <TouchableOpacity
-                className="bg-gray-100 px-3 py-2 rounded-lg"
-                onPress={() => setIsEditing(true)}
-                activeOpacity={0.7}
-              >
-                <Text className="text-gray-700 font-semibold text-sm">Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="bg-red-50 px-2.5 py-2 rounded-lg"
-                onPress={() => onDeletePress(item)}
-                activeOpacity={0.7}
-              >
-                <Text className="text-red-500 font-bold text-base leading-none">
-                  ✕
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
+          <TouchableOpacity
+            className="bg-gray-100 px-3 py-2 rounded-lg"
+            onPress={() => onEditPress(item)}
+            activeOpacity={0.7}
+          >
+            <Text className="text-gray-700 font-semibold text-sm">Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="bg-red-50 px-2.5 py-2 rounded-lg"
+            onPress={() => onDeletePress(item)}
+            activeOpacity={0.7}
+          >
+            <Text className="text-red-500 font-bold text-base leading-none">
+              ✕
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
       <View className="flex-row items-center mt-1">
@@ -272,6 +228,15 @@ export default function GlobalLimitCountScreen() {
 
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteItem, setDeleteItem] = useState<GlobalLimitCount | null>(null);
+
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editItem, setEditItem] = useState<GlobalLimitCount | null>(null);
+  const [editCount, setEditCount] = useState("");
+  const [editWindowStart, setEditWindowStart] = useState<Date | null>(null);
+  const [editWindowEnd, setEditWindowEnd] = useState<Date | null>(null);
+  const [editTimePicker, setEditTimePicker] = useState<null | "start" | "end">(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editErrorFields, setEditErrorFields] = useState<("count" | "window")[]>([]);
 
   const maxDigits = getDigitsForNumberType(numberType);
 
@@ -342,19 +307,45 @@ export default function GlobalLimitCountScreen() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (payload: { id: number; count: number }) =>
-      api.patch(`${API_BASE}/${payload.id}/`, { count: payload.count }),
+    mutationFn: (payload: {
+      id: number;
+      count: number;
+      window_start_time: string | null;
+      window_end_time: string | null;
+    }) =>
+      api.patch(`${API_BASE}/${payload.id}/`, {
+        count: payload.count,
+        window_start_time: payload.window_start_time,
+        window_end_time: payload.window_end_time,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [API_BASE, drawId] });
+      closeEditModal();
       ToastAndroid.show("Limit updated.", ToastAndroid.SHORT);
     },
     onError: (err: any) => {
-      Dialog.show({
-        type: ALERT_TYPE.DANGER,
-        title: "Error",
-        textBody: err?.response?.data?.detail || "Failed to update limit.",
-        button: "OK",
-      });
+      // Keep the modal open so the values can be corrected in place.
+      const windowErr =
+        err?.message?.window_end_time?.[0] ||
+        err?.response?.data?.window_end_time?.[0] ||
+        err?.message?.window_start_time?.[0] ||
+        err?.response?.data?.window_start_time?.[0];
+      if (windowErr) {
+        setEditErrorFields(["window"]);
+        setEditError(windowErr);
+        return;
+      }
+      setEditErrorFields([]);
+      setEditError(
+        err?.message?.__all__?.[0] ||
+          err?.message?.non_field_errors?.[0] ||
+          err?.message?.count?.[0] ||
+          err?.message?.error ||
+          err?.message?.detail ||
+          err?.response?.data?.detail ||
+          (typeof err?.message === "string" ? err.message : null) ||
+          "Failed to update limit."
+      );
     },
   });
 
@@ -373,6 +364,47 @@ export default function GlobalLimitCountScreen() {
       });
     },
   });
+
+  const closeEditModal = useCallback(() => {
+    setEditModalVisible(false);
+    setEditItem(null);
+    setEditTimePicker(null);
+    setEditError(null);
+    setEditErrorFields([]);
+  }, []);
+
+  const handleEditPress = useCallback((item: GlobalLimitCount) => {
+    setEditItem(item);
+    setEditCount(item.count.toString());
+    setEditWindowStart(parseWindowTime(item.window_start_time));
+    setEditWindowEnd(parseWindowTime(item.window_end_time));
+    setEditError(null);
+    setEditErrorFields([]);
+    setEditModalVisible(true);
+  }, []);
+
+  const handleEditSave = () => {
+    if (!editItem) return;
+    const countNum = parseInt(editCount, 10);
+    if (!editCount.trim() || isNaN(countNum) || countNum < 0) {
+      setEditError("Please enter a valid count.");
+      setEditErrorFields(["count"]);
+      return;
+    }
+    if (editWindowStart && editWindowEnd && formatTime(editWindowEnd) <= formatTime(editWindowStart)) {
+      setEditError("Window end time must be after window start time.");
+      setEditErrorFields(["window"]);
+      return;
+    }
+    setEditError(null);
+    setEditErrorFields([]);
+    updateMutation.mutate({
+      id: editItem.id,
+      count: countNum,
+      window_start_time: editWindowStart ? formatTime(editWindowStart) : null,
+      window_end_time: editWindowEnd ? formatTime(editWindowEnd) : null,
+    });
+  };
 
   const handleDeletePress = useCallback((item: GlobalLimitCount) => {
     setDeleteItem(item);
@@ -785,12 +817,12 @@ export default function GlobalLimitCountScreen() {
       <View className="mx-4">
         <LimitRow
           item={item}
-          updateMutation={updateMutation}
+          onEditPress={handleEditPress}
           onDeletePress={handleDeletePress}
         />
       </View>
     ),
-    [updateMutation, handleDeletePress]
+    [handleEditPress, handleDeletePress]
   );
 
   if (isLoading) {
@@ -840,6 +872,156 @@ export default function GlobalLimitCountScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       />
+
+      {/* Edit modal -- count and time window */}
+      <Modal
+        visible={editModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeEditModal}
+      >
+        <Pressable
+          className="flex-1 justify-center items-center bg-black/40 px-5"
+          onPress={closeEditModal}
+        >
+          <Pressable
+            className="bg-white w-full rounded-2xl p-6"
+            style={{ maxWidth: 380 }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text className="text-lg font-bold text-gray-900 text-center mb-1">
+              Edit Limit
+            </Text>
+            <Text className="text-sm text-gray-500 text-center mb-5">
+              {editItem?.limit_type === "range"
+                ? `${editItem?.range_start ?? ""} - ${editItem?.range_end ?? ""}`
+                : editItem?.number ?? ""}
+              {editItem?.number_type
+                ? ` · ${TYPE_LABEL[editItem.number_type] ?? ""}`
+                : ""}
+            </Text>
+
+            <Text className="text-xs font-bold text-gray-500 uppercase mb-2">
+              Count
+            </Text>
+            <TextInput
+              className="bg-white rounded-lg px-3 py-3 text-base text-gray-900 mb-4"
+              style={{
+                borderWidth: 1,
+                borderColor: borderColor(editErrorFields.includes("count")),
+              }}
+              placeholder="Count"
+              value={editCount}
+              onChangeText={(text) => {
+                setEditError(null);
+                setEditErrorFields([]);
+                setEditCount(text.replace(/\D/g, ""));
+              }}
+              keyboardType="number-pad"
+              placeholderTextColor="#9CA3AF"
+              editable={!updateMutation.isPending}
+            />
+
+            <Text className="text-xs font-bold text-gray-500 uppercase mb-2">
+              Time Window
+            </Text>
+            <View className="flex-row items-center gap-2">
+              <TouchableOpacity
+                className="flex-1 flex-row items-center justify-center bg-white rounded-lg px-3 py-3"
+                style={{
+                  borderWidth: 1,
+                  borderColor: borderColor(editErrorFields.includes("window")),
+                }}
+                onPress={() => setEditTimePicker("start")}
+                disabled={updateMutation.isPending}
+                activeOpacity={0.7}
+              >
+                <Text className="text-sm text-gray-700">
+                  {editWindowStart
+                    ? editWindowStart.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })
+                    : "Start"}
+                </Text>
+              </TouchableOpacity>
+              <Text className="text-gray-400 text-xs">to</Text>
+              <TouchableOpacity
+                className="flex-1 flex-row items-center justify-center bg-white rounded-lg px-3 py-3"
+                style={{
+                  borderWidth: 1,
+                  borderColor: borderColor(editErrorFields.includes("window")),
+                }}
+                onPress={() => setEditTimePicker("end")}
+                disabled={updateMutation.isPending}
+                activeOpacity={0.7}
+              >
+                <Text className="text-sm text-gray-700">
+                  {editWindowEnd
+                    ? editWindowEnd.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })
+                    : "End"}
+                </Text>
+              </TouchableOpacity>
+              {(editWindowStart || editWindowEnd) && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setEditWindowStart(null);
+                    setEditWindowEnd(null);
+                    setEditError(null);
+                    setEditErrorFields([]);
+                  }}
+                  disabled={updateMutation.isPending}
+                  activeOpacity={0.7}
+                >
+                  <Text className="text-red-500 text-xs font-bold">Clear</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text className="text-xs text-gray-400 mt-1 mb-4">
+              Leave blank for a limit that applies all day.
+            </Text>
+
+            {editError && (
+              <Text className="text-red-500 text-sm mb-3">{editError}</Text>
+            )}
+
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                onPress={closeEditModal}
+                className="flex-1 bg-gray-100 py-3 rounded-xl items-center"
+                activeOpacity={0.8}
+              >
+                <Text className="text-gray-600 font-bold text-sm">Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleEditSave}
+                className="flex-1 bg-indigo-600 py-3 rounded-xl items-center"
+                activeOpacity={0.8}
+                disabled={updateMutation.isPending}
+                style={{ opacity: updateMutation.isPending ? 0.6 : 1 }}
+              >
+                <Text className="text-white font-bold text-sm">
+                  {updateMutation.isPending ? "Saving..." : "Save"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {editTimePicker && (
+              <DateTimePicker
+                mode="time"
+                value={(editTimePicker === "start" ? editWindowStart : editWindowEnd) || new Date()}
+                display={Platform.OS === "android" ? "default" : "spinner"}
+                onChange={(event, date) => {
+                  if (date) {
+                    setEditError(null);
+                    setEditErrorFields([]);
+                    if (editTimePicker === "start") setEditWindowStart(date);
+                    else setEditWindowEnd(date);
+                  }
+                  setEditTimePicker(null);
+                }}
+              />
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Delete confirmation modal */}
       <Modal
