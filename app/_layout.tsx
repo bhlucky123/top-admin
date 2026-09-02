@@ -39,6 +39,14 @@ export default function RootLayout() {
             options={{ title: "Vendor Details" }}
           />
           <Stack.Screen
+            name="dashboard"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="payments/[type]"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
             name="vendor-config/[id]"
             options={{ title: "Prize Configuration" }}
           />
