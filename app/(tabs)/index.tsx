@@ -2,6 +2,7 @@ import { useAuthStore } from "@/store/auth";
 import api from "@/utils/axios";
 import { useQuery } from "@tanstack/react-query";
 import {
+  BarChart3,
   Building2,
   ChevronRight,
   RefreshCw,
@@ -139,6 +140,24 @@ export default function DashboardScreen() {
               </Text>
             </TouchableOpacity>
           ))}
+
+          {/* Analytics Dashboard Card */}
+          <TouchableOpacity
+            onPress={() => router.push("/dashboard")}
+            className="bg-white rounded-2xl p-5 mb-4 shadow-sm border border-gray-100"
+            style={{ width: "48%" }}
+            activeOpacity={0.7}
+          >
+            <View className="w-10 h-10 rounded-xl items-center justify-center mb-3 bg-indigo-50">
+              <BarChart3 size={20} color="#4F46E5" />
+            </View>
+            <Text className="text-gray-800 text-sm font-bold mb-1">
+              Analytics Dashboard
+            </Text>
+            <Text className="text-gray-500 text-xs font-medium">
+              Sales, winnings & payments
+            </Text>
+          </TouchableOpacity>
 
           {/* Deletion Log Card */}
           <TouchableOpacity
