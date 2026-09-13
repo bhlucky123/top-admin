@@ -74,6 +74,7 @@ export default function RootLayout() {
             name="extra-counts"
             options={{ headerShown: false }}
           />
+          <Stack.Screen name="top-numbers" options={{ title: "Top Numbers" }} />
           <Stack.Screen
             name="transfer-log"
             options={{ headerShown: false }}
