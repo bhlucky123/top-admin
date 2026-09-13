@@ -159,6 +159,21 @@ export default function DashboardScreen() {
             </Text>
           </TouchableOpacity>
 
+          <TouchableOpacity
+            onPress={() => router.push("/top-numbers")}
+            className="bg-white rounded-2xl p-5 mb-4 shadow-sm border border-gray-100"
+            style={{ width: "48%" }}
+            activeOpacity={0.7}
+          >
+            <View className="w-10 h-10 rounded-xl items-center justify-center mb-3 bg-indigo-50">
+              <BarChart3 size={20} color="#4F46E5" />
+            </View>
+            <Text className="text-gray-800 text-sm font-bold mb-1">Top Numbers</Text>
+            <Text className="text-gray-500 text-xs font-medium">
+              Number counts across all vendors
+            </Text>
+          </TouchableOpacity>
+
           {/* Deletion Log Card */}
           <TouchableOpacity
             onPress={() => router.push("/booking-deletions")}

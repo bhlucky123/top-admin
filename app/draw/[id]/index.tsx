@@ -12,6 +12,7 @@ import {
 } from "lucide-react-native";
 import {
   StatusBar,
+  ScrollView,
   Text,
   TouchableOpacity,
   View,
@@ -92,6 +93,14 @@ export default function DrawDetailScreen() {
         }),
     },
     {
+      key: "top-numbers",
+      label: "Top Numbers",
+      description: "Number counts and amounts across all vendors.",
+      icon: <BarChart3 size={22} color="#4F46E5" />,
+      bg: "bg-indigo-50",
+      onPress: () => router.push({ pathname: "/top-numbers", params: { drawId } }),
+    },
+    {
       key: "global-limit-count",
       label: "Global Limit Count",
       description: "Set max booking count per number for this draw.",
@@ -137,9 +146,9 @@ export default function DrawDetailScreen() {
       </View>
 
       {/* Options */}
-      <View
+      <ScrollView
         className="px-4 pt-6"
-        style={{ paddingBottom: insets.bottom + 16 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
       >
         {options.map((opt) => (
           <TouchableOpacity
@@ -166,7 +175,7 @@ export default function DrawDetailScreen() {
             </View>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
     </View>
   );
 }
