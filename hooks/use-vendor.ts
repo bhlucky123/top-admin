@@ -42,6 +42,16 @@ type ToggleActiveParams = { id: number; is_active: boolean };
 type DeleteVendorParams = { id: number };
 
 const useVendor = () => {
+  const thresholdsMutation = useMutation<
+    { updated_count: number },
+    any,
+    Omit<VendorMonitoringFields, "monitoring_enabled">
+  >({
+    mutationFn: (payload) =>
+      api.patch("/administrator/vendors/monitoring-thresholds/", payload)
+        .then((res) => res.data),
+  });
+
   const createMutation = useMutation<Vendor, any, CreateVendorParams>({
     mutationFn: (payload) =>
       api.post("/administrator/vendors/", payload).then((res) => res.data),
@@ -63,6 +73,8 @@ const useVendor = () => {
   });
 
   return {
+    setAllVendorThresholds: thresholdsMutation.mutate,
+    isSettingThresholds: thresholdsMutation.isPending,
     createVendor: createMutation.mutate,
     createVendorAsync: createMutation.mutateAsync,
     isCreating: createMutation.isPending,

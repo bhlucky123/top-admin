@@ -1,4 +1,5 @@
 import VendorForm, { VendorFormData } from "@/components/vendor-form";
+import AllVendorThresholds from "@/components/all-vendor-thresholds";
 import useVendor, { Vendor } from "@/hooks/use-vendor";
 import api from "@/utils/axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -112,6 +113,7 @@ export default function VendorsScreen() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
+  const [showThresholds, setShowThresholds] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -198,6 +200,7 @@ export default function VendorsScreen() {
       <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
 
       {/* Header */}
+      {showThresholds && <AllVendorThresholds onClose={() => setShowThresholds(false)} />}
       <View className="bg-white border-b border-gray-200 px-6 pt-14 pb-5">
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-2xl font-bold text-gray-900">Vendors</Text>
@@ -219,6 +222,14 @@ export default function VendorsScreen() {
             placeholderTextColor="#9ca3af"
           />
         </View>
+        <TouchableOpacity
+          onPress={() => setShowThresholds(true)}
+          disabled={isLoading || vendors.length === 0}
+          className={`mt-3 flex-row items-center rounded-xl bg-indigo-50 px-4 py-3 ${isLoading || vendors.length === 0 ? "opacity-50" : ""}`}
+        >
+          <Activity size={18} color="#4F46E5" />
+          <Text className="ml-2 flex-1 font-semibold text-indigo-700">Set thresholds for all vendors</Text>
+        </TouchableOpacity>
       </View>
 
       {isLoading ? (
