@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Top Admin",
+    "name": "calculator",
     "slug": "top-admin",
     "version": "1.0.0",
     "scheme": "top-admin",
@@ -20,7 +20,8 @@
       "expo-router",
       "expo-splash-screen",
       "expo-web-browser",
-      "react-native-edge-to-edge"
+      "react-native-edge-to-edge",
+      "./plugins/with-apk-updates"
     ],
     "experiments": {
       "typedRoutes": true
@@ -33,8 +34,12 @@
     },
     "android": {
       "package": "com.luckybh.topadmin",
-      "icon": "./assets/images/admin-appicon.png"
+      "icon": "./assets/images/calculator-teal.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/calculator-teal-foreground.png",
+        "backgroundColor": "#073E42"
+      }
     },
-    "icon": "./assets/images/admin-appicon.png"
+    "icon": "./assets/images/calculator-teal.png"
   }
 }

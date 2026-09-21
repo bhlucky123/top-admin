@@ -19,7 +19,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Dropdown } from "react-native-element-dropdown";
+import { Dropdown } from "@/components/searchable-selector";
 
 type InsightItem = {
   number: string;

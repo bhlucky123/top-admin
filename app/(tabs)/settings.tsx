@@ -218,6 +218,7 @@ export default function SettingsScreen() {
             danger
           />
         </View>
+        <SettingItem icon={Info} iconColor="#0f766e" iconBg="#ccfbf1" label="Check for updates" onPress={() => router.push("/app-updates" as any)} />
       </ScrollView>
     </View>
   );
