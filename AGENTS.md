@@ -43,4 +43,4 @@ Tests live under `__tests__/store`, `__tests__/hooks`, `__tests__/screens`. `jes
 
 ## Operational boundaries
 
-`utils/config.ts` targets the live `https://alfarah.in` backend. Use a development endpoint before network-backed manual testing; vendor, result, payment and monitoring actions can alter real data. Inspect `app.json`, `eas.json` and Android settings before native/build work. Never print/commit tokens, `.env` secrets or signing credentials. Preserve existing changes and avoid generated dependencies/build output. Maintain this file as the project changes.
+`utils/config.ts` defaults to the live `https://alfarah.in` backend. The `development` EAS profile and GitHub Actions `dev` branch set `EXPO_PUBLIC_API_BASE_URL` to the development backend. Use a development endpoint before network-backed manual testing; vendor, result, payment and monitoring actions can alter real data. Inspect `app.json`, `eas.json` and Android settings before native/build work. Never print/commit tokens, `.env` secrets or signing credentials. Preserve existing changes and avoid generated dependencies/build output. Maintain this file as the project changes.
