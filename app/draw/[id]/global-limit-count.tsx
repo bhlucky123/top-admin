@@ -236,7 +236,6 @@ export default function GlobalLimitCountScreen() {
     ("number" | "rangeStart" | "rangeEnd" | "count" | "window")[]
   >([]);
   const [filterNumberType, setFilterNumberType] = useState<NumberType | "all">("all");
-  const [filterSubType, setFilterSubType] = useState<SubType | "all">("all");
 
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteItem, setDeleteItem] = useState<GlobalLimitCount | null>(null);
@@ -257,7 +256,7 @@ export default function GlobalLimitCountScreen() {
     setErrorFields([]);
   };
 
-  const queryKey = [API_BASE, drawId, filterNumberType, filterSubType];
+  const queryKey = [API_BASE, drawId, filterNumberType];
 
   const {
     data: limits,
@@ -269,7 +268,6 @@ export default function GlobalLimitCountScreen() {
     queryFn: async () => {
       let url = `${API_BASE}/?draw__id=${drawId}&config_level=global`;
       if (filterNumberType !== "all") url += `&number_type=${filterNumberType}`;
-      if (filterSubType !== "all") url += `&sub_type=${filterSubType}`;
       return api.get<GlobalLimitCount[]>(url).then((r) => r.data);
     },
     enabled: !!drawId,
@@ -547,9 +545,6 @@ export default function GlobalLimitCountScreen() {
     { value: "all", label: "All" },
     ...numberTypeOptions,
   ];
-  const filterSubTypeOptions = filterNumberType === "all"
-    ? Object.values(SUBTYPE_OPTIONS).flat()
-    : SUBTYPE_OPTIONS[filterNumberType];
 
   const renderHeader = () => (
     <View>
@@ -794,10 +789,7 @@ export default function GlobalLimitCountScreen() {
                 return (
                   <TouchableOpacity
                     key={f.value}
-                    onPress={() => {
-                      setFilterNumberType(f.value as NumberType | "all");
-                      setFilterSubType("all");
-                    }}
+                    onPress={() => setFilterNumberType(f.value as NumberType | "all")}
                     activeOpacity={0.7}
                     className={`px-3 py-2 rounded-lg ${active ? "bg-indigo-600" : "bg-white border border-gray-200"}`}
                   >
@@ -810,33 +802,6 @@ export default function GlobalLimitCountScreen() {
                 );
               })}
             </View>
-            {filterSubTypeOptions.length > 0 && (
-              <View className="mt-3">
-                <Text className="text-xs font-semibold text-gray-500 mb-2">Sub Type</Text>
-                <View className="flex-row flex-wrap gap-2">
-                  <TouchableOpacity
-                    onPress={() => setFilterSubType("all")}
-                    activeOpacity={0.7}
-                    className={`px-3 py-2 rounded-lg ${filterSubType === "all" ? "bg-indigo-600" : "bg-white border border-gray-200"}`}
-                  >
-                    <Text className={`text-xs font-bold ${filterSubType === "all" ? "text-white" : "text-gray-600"}`}>All</Text>
-                  </TouchableOpacity>
-                  {filterSubTypeOptions.map((option) => {
-                    const active = filterSubType === option.value;
-                    return (
-                      <TouchableOpacity
-                        key={option.value}
-                        onPress={() => setFilterSubType(option.value)}
-                        activeOpacity={0.7}
-                        className={`px-3 py-2 rounded-lg ${active ? "bg-indigo-600" : "bg-white border border-gray-200"}`}
-                      >
-                        <Text className={`text-xs font-bold ${active ? "text-white" : "text-gray-600"}`}>{option.label}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
             {isFetching && (
               <View className="items-center mt-2">
                 <ActivityIndicator size="small" color="#4F46E5" />
