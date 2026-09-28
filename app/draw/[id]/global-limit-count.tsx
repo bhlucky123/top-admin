@@ -21,6 +21,7 @@ import {
 import { ALERT_TYPE, Dialog } from "react-native-alert-notification";
 
 type NumberType = "single_digit" | "double_digit" | "triple_digit" | "four_digit";
+type SubType = "A" | "B" | "C" | "AB" | "BC" | "AC" | "SUPER" | "BOX";
 type LimitType = "single_number" | "range";
 type DrawType = "default" | "kerala" | "tamil_nadu";
 
@@ -30,6 +31,7 @@ type GlobalLimitCount = {
   number: string | null;
   count: number;
   number_type: NumberType;
+  sub_type?: SubType | null;
   limit_type: LimitType;
   range_start: string | null;
   range_end: string | null;
@@ -82,6 +84,14 @@ const DRAW_TYPE_NUMBER_TYPES: Record<DrawType, { value: NumberType; label: strin
   tamil_nadu: [
     { value: "triple_digit", label: "3 Digit" },
   ],
+};
+
+// Restored from the former subtype-limits screen.
+const SUBTYPE_OPTIONS: Record<NumberType, { value: SubType; label: string }[]> = {
+  single_digit: [{ value: "A", label: "A" }, { value: "B", label: "B" }, { value: "C", label: "C" }],
+  double_digit: [{ value: "AB", label: "AB" }, { value: "BC", label: "BC" }, { value: "AC", label: "AC" }],
+  triple_digit: [{ value: "SUPER", label: "SUPER" }, { value: "BOX", label: "BOX" }],
+  four_digit: [],
 };
 
 const getDigitsForNumberType = (nt: NumberType) => {
@@ -149,7 +159,7 @@ const LimitRow = memo(
         ? `${item.range_start}-${item.range_end}`
         : item.number;
 
-    const typeLabel = TYPE_LABEL[item.number_type] ?? "";
+    const typeLabel = item.sub_type ?? TYPE_LABEL[item.number_type] ?? "";
 
     return (
       <View
@@ -211,6 +221,7 @@ export default function GlobalLimitCountScreen() {
 
   const numberTypeOptions = DRAW_TYPE_NUMBER_TYPES[drawType] || DRAW_TYPE_NUMBER_TYPES.default;
   const [numberType, setNumberType] = useState<NumberType>(numberTypeOptions[0].value);
+  const [subType, setSubType] = useState<SubType>("A");
   const [limitType, setLimitType] = useState<LimitType>("single_number");
   const [newNumber, setNewNumber] = useState("");
   const [newRangeStart, setNewRangeStart] = useState("");
@@ -264,7 +275,7 @@ export default function GlobalLimitCountScreen() {
   });
 
   const addMutation = useMutation({
-    mutationFn: (payload: Omit<GlobalLimitCount, "id">) =>
+    mutationFn: (payload: Omit<GlobalLimitCount, "id" | "vendor" | "dealer" | "config_level">) =>
       api.post(`${API_BASE}/`, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [API_BASE, drawId] });
@@ -489,6 +500,7 @@ export default function GlobalLimitCountScreen() {
         number: trimmed,
         count: countNum,
         number_type: numberType,
+        sub_type: SUBTYPE_OPTIONS[numberType].length ? subType : null,
         limit_type: "single_number",
         range_start: null,
         range_end: null,
@@ -518,6 +530,7 @@ export default function GlobalLimitCountScreen() {
         number: null,
         count: countNum,
         number_type: numberType,
+        sub_type: SUBTYPE_OPTIONS[numberType].length ? subType : null,
         limit_type: "range",
         range_start: trimStart,
         range_end: trimEnd,
@@ -574,10 +587,29 @@ export default function GlobalLimitCountScreen() {
                 selected={numberType}
                 onSelect={(v) => {
                   clearValidation();
-                  setNumberType(v as NumberType);
+                  const nextType = v as NumberType;
+                  setNumberType(nextType);
+                  setSubType(SUBTYPE_OPTIONS[nextType][0]?.value || "A");
                   setNewNumber("");
                   setNewRangeStart("");
                   setNewRangeEnd("");
+                }}
+                disabled={isSubmitting}
+              />
+            </View>
+          )}
+
+          {SUBTYPE_OPTIONS[numberType].length > 0 && (
+            <View className="mb-3">
+              <Text className="text-xs font-bold text-gray-500 uppercase mb-2">
+                Sub Type
+              </Text>
+              <PillTabs
+                options={SUBTYPE_OPTIONS[numberType]}
+                selected={subType}
+                onSelect={(v) => {
+                  clearValidation();
+                  setSubType(v as SubType);
                 }}
                 disabled={isSubmitting}
               />
