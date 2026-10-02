@@ -1,11 +1,12 @@
 import React from "react";
 import { fireEvent, render } from "@testing-library/react-native";
+import { Modal } from "react-native";
 import { Dropdown } from "../../components/searchable-selector";
 
 test("searches a large list, selects a row and clears through the same callback", () => {
   const changed = jest.fn();
   const rows = Array.from({ length: 1000 }, (_, id) => ({ label: `Dealer ${id}`, value: id }));
-  const screen = render(<Dropdown data={rows} labelField="label" valueField="value" value="" onChange={changed} placeholder="Dealer" />);
+  const screen = render(<Dropdown data={rows} labelField="label" valueField="value" value="" onChange={changed} placeholder="Dealer" search searchPlaceholder="Search dealers" />);
   fireEvent.press(screen.getByLabelText("Dealer"));
   fireEvent.changeText(screen.getByLabelText("Search options"), "Dealer 999");
   fireEvent.press(screen.getByText("Dealer 999"));
@@ -16,10 +17,18 @@ test("searches a large list, selects a row and clears through the same callback"
 });
 
 test("shows an empty state and closes on Android back", () => {
-  const screen = render(<Dropdown data={[]} labelField="label" valueField="value" value="" onChange={jest.fn()} placeholder="Dealer" />);
+  const screen = render(<Dropdown data={[]} labelField="label" valueField="value" value="" onChange={jest.fn()} placeholder="Dealer" search />);
   fireEvent.press(screen.getByLabelText("Dealer"));
   expect(screen.getByText("No options available")).toBeTruthy();
-  fireEvent(screen.UNSAFE_getByType(require("react-native").Modal), "requestClose");
+  fireEvent(screen.UNSAFE_getByType(Modal), "requestClose");
   expect(screen.queryByText("No options available")).toBeNull();
+});
+
+test("only renders a search field when a screen enables search", () => {
+  const screen = render(<Dropdown data={[{ label: "Dealer One", value: 1 }]} labelField="label" valueField="value" value="" onChange={jest.fn()} placeholder="Dealer" />);
+
+  fireEvent.press(screen.getByLabelText("Dealer"));
+
+  expect(screen.queryByLabelText("Search options")).toBeNull();
 });
 

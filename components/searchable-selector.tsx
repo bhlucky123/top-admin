@@ -14,12 +14,12 @@ type Props = {
   inputSearchStyle?: StyleProp<TextStyle>;
 };
 
-export function Dropdown({ data, labelField, valueField, value, onChange, placeholder = "Select", loading, disabled, style, selectedTextStyle, placeholderStyle, itemTextStyle, inputSearchStyle }: Props) {
+export function Dropdown({ data, labelField, valueField, value, onChange, placeholder = "Select", loading, disabled, style, selectedTextStyle, placeholderStyle, itemTextStyle, inputSearchStyle, search = false, searchPlaceholder = "Search…" }: Props) {
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const selected = data.find(item => String(item[valueField]) === String(value));
-  const rows = useMemo(() => data.filter(item => String(item[labelField] ?? "").toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())), [data, labelField, search]);
-  const close = () => { setOpen(false); setSearch(""); };
+  const rows = useMemo(() => data.filter(item => String(item[labelField] ?? "").toLocaleLowerCase().includes(searchQuery.trim().toLocaleLowerCase())), [data, labelField, searchQuery]);
+  const close = () => { setOpen(false); setSearchQuery(""); };
   const choose = (item: Item) => { onChange(item); close(); };
   return <>
     <Pressable accessibilityRole="button" accessibilityLabel={placeholder} disabled={disabled} onPress={() => setOpen(true)} style={[styles.trigger, style]}>
@@ -32,12 +32,12 @@ export function Dropdown({ data, labelField, valueField, value, onChange, placeh
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.overlay}>
         <View accessibilityViewIsModal style={styles.panel}>
           <View style={styles.row}><Text style={styles.title}>{placeholder}</Text><Pressable accessibilityRole="button" onPress={close} style={styles.action}><Text>Close</Text></Pressable></View>
-          <TextInput accessibilityLabel="Search options" placeholder="Search…" value={search} onChangeText={setSearch} autoCorrect={false} style={[styles.search, inputSearchStyle]} />
+          {search && <TextInput accessibilityLabel="Search options" placeholder={searchPlaceholder} value={searchQuery} onChangeText={setSearchQuery} autoCorrect={false} style={[styles.search, inputSearchStyle]} />}
           <Pressable accessibilityRole="button" onPress={() => choose({ [valueField]: data.some(item => item[valueField] === null) ? null : "", [labelField]: "" })} style={styles.action}><Text>Clear selection</Text></Pressable>
           {loading ? <ActivityIndicator accessibilityLabel="Loading options" style={styles.action} /> : <FlatList
             data={rows} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" initialNumToRender={20} windowSize={7}
             keyExtractor={(item, index) => `${item[valueField]}-${index}`}
-            ListEmptyComponent={<Text style={styles.action}>{search ? "No matching options" : "No options available"}</Text>}
+            ListEmptyComponent={<Text style={styles.action}>{search && searchQuery.trim() ? "No matching options" : "No options available"}</Text>}
             renderItem={({ item }) => { const active = String(item[valueField]) === String(value); return <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => choose(item)} style={[styles.option, active && styles.selected]}><Text style={[styles.text, itemTextStyle]}>{item[labelField]}</Text>{active && <Text>✓</Text>}</Pressable>; }}
           />}
         </View>

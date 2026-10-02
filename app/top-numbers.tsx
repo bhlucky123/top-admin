@@ -692,6 +692,8 @@ export default function TopNumbers() {
                 valueField="value"
                 value={dealerId}
                 placeholder="All dealers"
+                search
+                searchPlaceholder="Search dealers"
                 onChange={(item: any) => {
                   setDealerId(item.value);
                   setExcludedDealerIds([]);
