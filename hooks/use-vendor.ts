@@ -15,6 +15,7 @@ export type Vendor = {
   monitoring_double_digit_ac_count?: number;
   monitoring_triple_digit_super_count?: number;
   monitoring_triple_digit_box_count?: number;
+  sales_report_recipients?: string[];
 };
 
 type VendorMonitoringFields = {
@@ -27,6 +28,7 @@ type VendorMonitoringFields = {
   monitoring_double_digit_ac_count?: number;
   monitoring_triple_digit_super_count?: number;
   monitoring_triple_digit_box_count?: number;
+  sales_report_recipients?: string[];
 };
 
 type CreateVendorParams = VendorMonitoringFields & {
