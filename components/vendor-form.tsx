@@ -196,11 +196,8 @@ export default function VendorForm({
             {salesReportRecipients.length > 0 && (
               <View className="border border-gray-200 rounded-2xl overflow-hidden mb-3">
                 {salesReportRecipients.map((email, index) => (
-                  <View key={`${index}-${email}`} className={`${index > 0 ? "border-t border-gray-100" : ""} px-4 py-3.5`}>
+                  <View key={index} className={`${index > 0 ? "border-t border-gray-100" : ""} px-4 py-3.5`}>
                     <View className="flex-row items-center">
-                      <View className="w-9 h-9 rounded-full bg-indigo-50 items-center justify-center mr-3">
-                        <Mail size={17} color="#4F46E5" />
-                      </View>
                       <TextInput
                         accessibilityLabel={`Vendor report email ${index + 1}`}
                         keyboardType="email-address"
@@ -210,7 +207,7 @@ export default function VendorForm({
                         autoCapitalize="none"
                         autoCorrect={false}
                         placeholderTextColor="#9CA3AF"
-                        className={`flex-1 border-2 rounded-xl px-3 py-2.5 text-gray-800 font-medium ${errors[`email-${index}`] ? "border-red-300 bg-red-50" : "border-gray-200 bg-white"}`}
+                        className={`flex-1 border-2 rounded-xl px-4 py-2.5 text-gray-800 font-medium ${errors[`email-${index}`] ? "border-red-300 bg-red-50" : "border-gray-200 bg-white"}`}
                       />
                       <TouchableOpacity
                         accessibilityLabel={`Remove report email ${index + 1}`}
